@@ -1,0 +1,375 @@
+@baseUrl = http://localhost:5000/api
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJhODY5ZThmNC0xZjM0LTRmMzAtYmJmZS0xMmRhNTU0ODgzNmUiLCJyb2xlIjoiQURNSU4iLCJ0ZW5hbnRJZCI6IjUzNDNkMTEzLThkYTItNGVlYS05ZDYxLTVlMWFjYjQxNzg4OCIsImlhdCI6MTc2MzMyNTIwNiwiZXhwIjoxNzYzNDExNjA2fQ.ZqgM9xr0FlHVowTeq6WTDI7LWlyFppZdbme3_I62zC8
+@studentToken = your_student_token_here
+@roomId = 123e4567-e89b-12d3-a456-426614174000
+@allocationId = 223e4567-e89b-12d3-a456-426614174000
+@studentId = 323e4567-e89b-12d3-a456-426614174000
+
+### ============================================
+### AUTH CONTROLLER
+### ============================================
+
+### register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "admin@hostel1234.com",
+  "password": "Password@123",
+  "phone": "9876543210"
+}
+
+### login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@hostel.com",
+  "password": "Password@123"
+}
+
+### ============================================
+### STUDENT PROFILE CONTROLLER
+### ============================================
+
+### createStudentProfile
+POST {{baseUrl}}/student-profile
+
+3./student-profile
+Content-Type: application/json
+Authorization: Bearer @studentToken
+
+{
+  "guardianName": "Jane Doe",
+  "guardianPhone": "9876543211",
+  "address": "456 Student Lane, College Area",
+  "emergencyContact": "9876543212",
+  "dateOfBirth": "2002-05-15",
+  "bloodGroup": "O+",
+  "enrollmentNumber": "STU001",
+  "course": "Computer Science",
+  "year": "2"
+}
+
+### getStudentProfile
+GET @baseUrl/student-profile
+Authorization: Bearer @studentToken
+
+### updateStudentProfile
+PUT @baseUrl/student-profile
+Content-Type: application/json
+Authorization: Bearer @studentToken
+
+{
+  "guardianName": "Jane Doe Updated",
+  "guardianPhone": "9876543211",
+  "address": "456 Student Lane Updated, College Area",
+  "emergencyContact": "9876543212",
+  "dateOfBirth": "2002-05-15",
+  "bloodGroup": "AB+",
+  "enrollmentNumber": "STU001",
+  "course": "Computer Science",
+  "year": "3"
+}
+
+### getStudentWithRoom
+GET @baseUrl/student-profile/with-room
+Authorization: Bearer @studentToken
+
+### ============================================
+### ROOM CONTROLLER
+### ============================================
+
+### createRoom
+POST @baseUrl/admin/room
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "roomNumber": "101",
+  "floor": 1,
+  "capacity": 2,
+  "roomType": "DOUBLE"
+}
+
+### getAllRooms
+GET @baseUrl/admin/room?skip=0&take=10&floor=1&roomType=DOUBLE&status=AVAILABLE
+Authorization: Bearer @adminToken
+
+### getRoomById
+GET @baseUrl/admin/room/@roomId
+Authorization: Bearer @adminToken
+
+### updateRoom
+PUT @baseUrl/admin/room/@roomId
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "capacity": 3,
+  "status": "AVAILABLE",
+  "roomType": "TRIPLE"
+}
+
+### deleteRoom
+DELETE @baseUrl/admin/room/@roomId
+Authorization: Bearer @adminToken
+
+### bulkCreateRooms
+POST @baseUrl/admin/room/bulk
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "floorNumber": 1,
+  "startRoomNumber": 101,
+  "endRoomNumber": 110,
+  "capacity": 2,
+  "roomType": "DOUBLE"
+}
+
+### getRoomOccupancy
+GET @baseUrl/admin/room/occupancy
+Authorization: Bearer @adminToken
+
+### ============================================
+### ALLOCATION CONTROLLER
+### ============================================
+
+### createAllocation
+POST @baseUrl/admin/allocation
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "studentId": "323e4567-e89b-12d3-a456-426614174000",
+  "roomId": "123e4567-e89b-12d3-a456-426614174000",
+  "remarks": "Regular allocation"
+}
+
+### getAllAllocations
+GET @baseUrl/admin/allocation?skip=0&take=10&status=ACTIVE
+Authorization: Bearer @adminToken
+
+### getAllocationById
+GET @baseUrl/admin/allocation/@allocationId
+Authorization: Bearer @adminToken
+
+### updateAllocation
+PUT @baseUrl/admin/allocation/@allocationId
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "status": "TRANSFERRED",
+  "remarks": "Student transferred to another room"
+}
+
+### deallocateStudent
+DELETE @baseUrl/admin/allocation/@allocationId
+Authorization: Bearer @adminToken
+
+### bulkAllocate
+POST @baseUrl/admin/allocation/bulk
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "allocations": [
+    {
+      "studentId": "323e4567-e89b-12d3-a456-426614174001",
+      "roomId": "123e4567-e89b-12d3-a456-426614174001",
+      "remarks": "Allocation 1"
+    },
+    {
+      "studentId": "323e4567-e89b-12d3-a456-426614174002",
+      "roomId": "123e4567-e89b-12d3-a456-426614174002",
+      "remarks": "Allocation 2"
+    }
+  ]
+}
+
+### getStudentAllocationHistory
+GET @baseUrl/admin/allocation/student/@studentId/history
+Authorization: Bearer @adminToken
+
+### ============================================
+### DASHBOARD CONTROLLER
+### ============================================
+
+### getDashboardMetrics
+GET @baseUrl/admin/dashboard/metrics
+Authorization: Bearer @adminToken
+
+### getOccupancyTrend
+GET @baseUrl/admin/dashboard/occupancy-trend?months=12
+Authorization: Bearer @adminToken
+
+### getComplaintTrend
+GET @baseUrl/admin/dashboard/complaint-trend?days=30
+Authorization: Bearer @adminToken
+
+### ============================================
+### ADMIN - CREATE STUDENT
+### ============================================
+
+### Create Student 1
+POST {{baseUrl}}/admin/student
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Ramith Kumar",
+  "email": "ramith.kumar@student.com",
+  "phone": "9876543210"
+}
+
+### Create Student 2
+POST {{baseUrl}}/admin/student
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Priya Sharma",
+  "email": "ramithchatterjee@gmail.com",
+  "phone": "9876543211"
+}
+
+### Create Student 3
+POST @baseUrl/admin/student
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "name": "Arjun Patel",
+  "email": "arjun.patel@student.com",
+  "phone": "9876543212"
+}
+
+### Create Student 4
+POST @baseUrl/admin/student
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "name": "Sneha Gupta",
+  "email": "sneha.gupta@student.com",
+  "phone": "9876543213"
+}
+
+### Create Student 5
+POST @baseUrl/admin/student
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "name": "Vikram Singh",
+  "email": "vikram.singh@student.com",
+  "phone": "9876543214"
+}
+
+### Create Student - Duplicate Email (Should Fail)
+POST @baseUrl/admin/student
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "name": "Duplicate Name",
+  "email": "ramith.kumar@student.com",
+  "phone": "9999999999"
+}
+
+### Create Student - Missing Required Field (Should Fail)
+POST @baseUrl/admin/student
+Content-Type: application/json
+Authorization: Bearer @adminToken
+
+{
+  "name": "Incomplete Student",
+  "email": "incomplete@student.com"
+}
+
+### ============================================
+### ADMIN - GET ALL STUDENTS
+### ============================================
+
+### Get All Students
+GET @baseUrl/admin/student
+Authorization: Bearer @adminToken
+
+### ============================================
+### STUDENT - LOGIN WITH CREATED CREDENTIALS
+### ============================================
+
+### Login as Created Student
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ramithchatterjee@gmail.com",
+  "password": "7OrEHlHKo%hK"
+}
+
+### ============================================
+### STUDENT - CREATE/UPDATE PROFILE
+### ============================================
+
+### Create Student Profile (After Login)
+POST @baseUrl/student-profile
+Content-Type: application/json
+Authorization: Bearer @studentToken
+
+{
+  "guardianName": "Mr. Ramesh Kumar",
+  "guardianPhone": "9876543215",
+  "address": "123 Student Lane, Tech City, State 12345",
+  "emergencyContact": "9876543216",
+  "dateOfBirth": "2002-03-15",
+  "bloodGroup": "O+",
+  "enrollmentNumber": "STU001",
+  "course": "Computer Science",
+  "year": "2"
+}
+
+### Create Student Profile 2
+POST @baseUrl/student-profile
+Content-Type: application/json
+Authorization: Bearer @studentToken
+
+{
+  "guardianName": "Mrs. Sunita Sharma",
+  "guardianPhone": "9876543217",
+  "address": "456 College Avenue, Education Hub, State 67890",
+  "emergencyContact": "9876543218",
+  "dateOfBirth": "2001-07-22",
+  "bloodGroup": "B+",
+  "enrollmentNumber": "STU002",
+  "course": "Electronics",
+  "year": "3"
+}
+
+### Get Student Profile
+GET @baseUrl/student-profile
+Authorization: Bearer @studentToken
+
+### Update Student Profile
+PUT @baseUrl/student-profile
+Content-Type: application/json
+Authorization: Bearer @studentToken
+
+{
+  "guardianName": "Mr. Ramesh Kumar Singh",
+  "guardianPhone": "9876543215",
+  "address": "123 Student Lane Updated, Tech City, State 12345",
+  "emergencyContact": "9876543219",
+  "dateOfBirth": "2002-03-15",
+  "bloodGroup": "AB+",
+  "enrollmentNumber": "STU001",
+  "course": "Computer Science",
+  "year": "3"
+}
+
+### Get Student With Room Allocation
+GET @baseUrl/student-profile/with-room
+Authorization: Bearer @studentToken

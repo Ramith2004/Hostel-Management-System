@@ -1,0 +1,862 @@
+@baseUrl = http://localhost:5000/api
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1YjRjZDA0My03ZjE5LTQxMWEtOGEwZS03OTI5ZWY0OTIwMjgiLCJyb2xlIjoiQURNSU4iLCJ0ZW5hbnRJZCI6ImZjOTIwMGQ5LTkzNzAtNDY4Yy1iODkyLTU4ZDdkNjlkOTQyNiIsImlhdCI6MTc2MzMzNjQ4NiwiZXhwIjoxNzYzNDIyODg2fQ.bkUuJDPsHNL6-1xMILtGMAXS7ecgKgubhdjvwdZnhWM
+@studentToken = your_student_token_here
+@buildingId = 46f52f8b-7698-4c48-93e4-4c6c38b1a66f
+@floorId = 4f5b8fb7-2d17-499c-b0c3-8e60457b73e2
+@roomId = 95d7f1bd-90d9-4301-a1fb-2aa32f501959
+@amenityId = 423e4567-e89b-12d3-a456-426614174000
+@complaintId = 523e4567-e89b-12d3-a456-426614174000
+@maintenanceId = 623e4567-e89b-12d3-a456-426614174000
+@visitorId = 723e4567-e89b-12d3-a456-426614174000
+@announcementId = 823e4567-e89b-12d3-a456-426614174000
+@studentId = a869e8f4-1f34-4f30-bbfe-12da5548836e
+@mappingId = 923e4567-e89b-12d3-a456-426614174000
+@timestamp = 1700310000000
+
+### ============================================
+### BUILDING MANAGEMENT
+### ============================================
+
+### Create Building 1 - Unique Code
+POST {{baseUrl}}/admin/hostel/buildings
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingName": "Hostel Block A",
+  "buildingCode": "HBA-001-{{timestamp}}",
+  "description": "Main hostel building for boys",
+  "address": "123 University Campus, Education City",
+  "contactPerson": "Mr. Ramesh Kumar",
+  "contactPhone": "9876543210",
+  "imageUrl": "https://example.com/images/building-a.jpg",
+  "constructedYear": 2018
+}
+
+### Create Building 2 - Unique Code
+POST {{baseUrl}}/admin/hostel/buildings
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingName": "Hostel Block B",
+  "buildingCode": "HBB-002-{{timestamp}}",
+  "description": "Hostel building for girls",
+  "address": "456 University Campus, Education City",
+  "contactPerson": "Ms. Priya Sharma",
+  "contactPhone": "9876543211",
+  "imageUrl": "https://example.com/images/building-b.jpg",
+  "constructedYear": 2020
+}
+
+### Create Building 3 - Unique Code
+POST {{baseUrl}}/admin/hostel/buildings
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingName": "Hostel Block C",
+  "buildingCode": "HBC-003-{{timestamp}}",
+  "description": "International students hostel",
+  "address": "789 University Campus, Education City",
+  "contactPerson": "Mr. Vijay Patel",
+  "contactPhone": "9876543212",
+  "constructedYear": 2022
+}
+
+### Create Building 4 - Unique Code
+POST {{baseUrl}}/admin/hostel/buildings
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingName": "Hostel Block D",
+  "buildingCode": "HBD-004-{{timestamp}}",
+  "description": "Additional hostel building",
+  "address": "234 University Campus, Education City",
+  "contactPerson": "Mr. Ramesh Kumar",
+  "contactPhone": "9876543210",
+  "imageUrl": "https://example.com/images/building-d.jpg",
+  "constructedYear": 2018
+}
+
+### Get All Buildings
+GET {{baseUrl}}/admin/hostel/buildings?skip=0&take=10&status=ACTIVE
+Authorization: Bearer {{adminToken}}
+
+### Get Building By ID
+GET {{baseUrl}}/admin/hostel/buildings/{{buildingId}}
+Authorization: Bearer {{adminToken}}
+
+### Update Building
+PUT {{baseUrl}}/admin/hostel/buildings/{{buildingId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingName": "Hostel Block A - Updated",
+  "description": "Main hostel building for boys - Renovated",
+  "contactPerson": "Mr. Ramesh Kumar Singh",
+  "contactPhone": "9876543215",
+  "status": "ACTIVE"
+}
+
+### Delete Building
+DELETE {{baseUrl}}/admin/hostel/buildings/{{buildingId}}
+Authorization: Bearer {{adminToken}}
+
+### Get Building Stats
+GET {{baseUrl}}/admin/hostel/buildings/{{buildingId}}/stats
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### FLOOR MANAGEMENT
+### ============================================
+
+### Create Floor 1 - Ground Floor
+POST {{baseUrl}}/admin/hostel/floors
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorNumber": 0,
+  "floorName": "Ground Floor",
+  "description": "Ground floor with common facilities"
+}
+
+### Create Floor 2 - First Floor
+POST {{baseUrl}}/admin/hostel/floors
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorNumber": 1,
+  "floorName": "First Floor",
+  "description": "First floor - Regular rooms"
+}
+
+### Create Floor 3 - Second Floor
+POST {{baseUrl}}/admin/hostel/floors
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorNumber": 2,
+  "floorName": "Second Floor",
+  "description": "Second floor - Premium rooms"
+}
+
+### Create Floor 4 - Third Floor
+POST {{baseUrl}}/admin/hostel/floors
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorNumber": 3,
+  "floorName": "Third Floor",
+  "description": "Third floor - Deluxe rooms"
+}
+
+### Create Floor 5 - Fourth Floor
+POST {{baseUrl}}/admin/hostel/floors
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorNumber": 4,
+  "floorName": "Fourth Floor",
+  "description": "Fourth floor - Suite rooms"
+}
+
+### Get Floors By Building
+GET {{baseUrl}}/admin/hostel/floors/building/{{buildingId}}
+Authorization: Bearer {{adminToken}}
+
+### Get Floor By ID
+GET {{baseUrl}}/admin/hostel/floors/{{floorId}}
+Authorization: Bearer {{adminToken}}
+
+### Update Floor
+PUT {{baseUrl}}/admin/hostel/floors/{{floorId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "floorName": "Ground Floor - Updated",
+  "description": "Ground floor with renovated common facilities",
+  "status": "ACTIVE"
+}
+
+### Delete Floor
+DELETE {{baseUrl}}/admin/hostel/floors/{{floorId}}
+Authorization: Bearer {{adminToken}}
+
+### Get Floor Stats
+GET {{baseUrl}}/admin/hostel/floors/{{floorId}}/stats
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### ROOM MANAGEMENT
+### ============================================
+### Create Room 1 - Single Room
+POST {{baseUrl}}/admin/hostel/rooms
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorId": "{{floorId}}",
+  "roomNumber": "101",
+  "roomName": "Room 101 - Deluxe",
+  "roomType": "SINGLE",
+  "capacity": 1,
+  "description": "Single room with attached bathroom",
+  "hasAttachedBathroom": true,
+  "hasWifi": true,
+  "hasACFacility": true,
+  "hasFurniture": true,
+  "floorArea": 250
+}
+
+### Create Room 2 - Double Room
+POST {{baseUrl}}/admin/hostel/rooms
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorId": "{{floorId}}",
+  "roomNumber": "102",
+  "roomName": "Room 102 - Premium Double",
+  "roomType": "DOUBLE",
+  "capacity": 2,
+  "description": "Double room with modern amenities",
+  "hasAttachedBathroom": true,
+  "hasWifi": true,
+  "hasACFacility": true,
+  "hasTV": true,
+  "hasRefrigerator": true,
+  "floorArea": 350
+}
+
+### Create Room 3 - Triple Room
+POST {{baseUrl}}/admin/hostel/rooms
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorId": "{{floorId}}",
+  "roomNumber": "103",
+  "roomName": "Room 103 - Triple",
+  "roomType": "TRIPLE",
+  "capacity": 3,
+  "description": "Triple sharing room",
+  "hasAttachedBathroom": false,
+  "hasWifi": true,
+  "hasACFacility": false,
+  "floorArea": 300
+}
+
+### Bulk Create Rooms (101-110 on Floor 0)
+POST {{baseUrl}}/admin/hostel/rooms/bulk/create
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "floorId": "{{floorId}}",
+  "startRoomNumber": "101",
+  "endRoomNumber": "110",
+  "roomType": "DOUBLE",
+  "capacity": 2,
+  "description": "Standard double rooms"
+}
+
+### Get All Rooms (with pagination)
+GET {{baseUrl}}/admin/hostel/rooms?skip=0&take=10
+Authorization: Bearer {{adminToken}}
+
+### Get All Rooms By Floor
+GET {{baseUrl}}/admin/hostel/rooms/floor/{{floorId}}
+Authorization: Bearer {{adminToken}}
+
+### Get Rooms by Building
+GET {{baseUrl}}/admin/hostel/rooms?buildingId={{buildingId}}
+Authorization: Bearer {{adminToken}}
+
+### Get Rooms by Room Type
+GET {{baseUrl}}/admin/hostel/rooms?roomType=DOUBLE
+Authorization: Bearer {{adminToken}}
+
+### Get Rooms by Status
+GET {{baseUrl}}/admin/hostel/rooms?status=AVAILABLE
+Authorization: Bearer {{adminToken}}
+
+### Get Room By ID (with amenities)
+GET {{baseUrl}}/admin/hostel/rooms/{{roomId}}
+Authorization: Bearer {{adminToken}}
+
+### Get Room Statistics
+GET {{baseUrl}}/admin/hostel/rooms/{{roomId}}/stats
+Authorization: Bearer {{adminToken}}
+
+### Update Room
+PUT {{baseUrl}}/admin/hostel/rooms/{{roomId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "roomName": "Room 101 - Updated Deluxe",
+  "description": "Updated description",
+  "hasWifi": true,
+  "hasTV": true
+}
+
+### Delete Room
+DELETE {{baseUrl}}/admin/hostel/rooms/{{roomId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ============================================
+### ROOM AMENITIES
+### ============================================
+
+### Create Amenity 1 - WiFi
+POST {{baseUrl}}/admin/hostel/amenities
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "amenityName": "WiFi",
+  "description": "High-speed wireless internet",
+  "icon": "wifi"
+}
+
+### Create Amenity 2 - Air Conditioning
+POST {{baseUrl}}/admin/hostel/amenities
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "amenityName": "Air Conditioning",
+  "description": "Central air conditioning system",
+  "icon": "ac_unit"
+}
+
+### Create Amenity 3 - Attached Bathroom
+POST {{baseUrl}}/admin/hostel/amenities
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "amenityName": "Attached Bathroom",
+  "description": "Private bathroom with hot water",
+  "icon": "bathroom"
+}
+
+### Create Amenity 4 - Study Table
+POST {{baseUrl}}/admin/hostel/amenities
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "amenityName": "Study Table",
+  "description": "Individual study table with lamp",
+  "icon": "desk"
+}
+
+### Create Amenity 5 - Wardrobe
+POST {{baseUrl}}/admin/hostel/amenities
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "amenityName": "Wardrobe",
+  "description": "Personal wardrobe with lock",
+  "icon": "door_sliding"
+}
+
+### Get All Amenities
+GET {{baseUrl}}/admin/hostel/amenities
+Authorization: Bearer {{adminToken}}
+
+### Get Amenity By ID
+GET {{baseUrl}}/admin/hostel/amenities/{{amenityId}}
+Authorization: Bearer {{adminToken}}
+
+### Update Amenity
+PUT {{baseUrl}}/admin/hostel/amenities/{{amenityId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "amenityName": "WiFi - Premium",
+  "description": "High-speed wireless internet with dedicated bandwidth",
+  "icon": "wifi_tethering"
+}
+
+### Delete Amenity
+DELETE {{baseUrl}}/admin/hostel/amenities/{{amenityId}}
+Authorization: Bearer {{adminToken}}
+
+### Add Amenity to Room
+POST {{baseUrl}}/admin/hostel/amenities/room/add
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "roomId": "{{roomId}}",
+  "amenityId": "{{amenityId}}"
+}
+
+### Remove Amenity from Room
+DELETE {{baseUrl}}/admin/hostel/amenities/room/remove/{{mappingId}}
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### ADMIN COMPLAINT MANAGEMENT
+### ============================================
+
+### Get All Complaints (Admin)
+GET {{baseUrl}}/admin/hostel/complaints?page=1&limit=10&status=PENDING&priority=HIGH
+Authorization: Bearer {{adminToken}}
+
+### Get All Complaints - Filter by Building
+GET {{baseUrl}}/admin/hostel/complaints?buildingId={{buildingId}}&category=MAINTENANCE
+Authorization: Bearer {{adminToken}}
+
+### Update Complaint Status - In Progress
+PATCH {{baseUrl}}/admin/hostel/complaints/{{complaintId}}/status
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "status": "IN_PROGRESS"
+}
+
+### Update Complaint Status - Resolved
+PATCH {{baseUrl}}/admin/hostel/complaints/{{complaintId}}/status
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "status": "RESOLVED",
+  "resolvedAt": "2024-11-17T10:00:00Z"
+}
+
+### Get Complaint Statistics
+GET {{baseUrl}}/admin/hostel/complaints/stats
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### STUDENT COMPLAINT MANAGEMENT
+### ============================================
+
+### Create Complaint 1 - Maintenance
+POST {{baseUrl}}/student/complaints
+Content-Type: application/json
+Authorization: Bearer {{studentToken}}
+
+{
+  "roomId": "{{roomId}}",
+  "category": "MAINTENANCE",
+  "title": "Broken Window",
+  "description": "The window in my room is broken and needs immediate repair",
+  "priority": "HIGH",
+  "attachmentUrl": "https://example.com/images/broken-window.jpg"
+}
+
+### Create Complaint 2 - Cleanliness
+POST {{baseUrl}}/student/complaints
+Content-Type: application/json
+Authorization: Bearer {{studentToken}}
+
+{
+  "roomId": "{{roomId}}",
+  "category": "HOUSEKEEPING",
+  "title": "Bathroom Cleaning Required",
+  "description": "Bathroom has not been cleaned for 3 days",
+  "priority": "MEDIUM"
+}
+
+### Create Complaint 3 - Security
+POST {{baseUrl}}/student/complaints
+Content-Type: application/json
+Authorization: Bearer {{studentToken}}
+
+{
+  "roomId": "{{roomId}}",
+  "category": "SAFETY",
+  "title": "Lock Not Working",
+  "description": "Room door lock is not working properly",
+  "priority": "HIGH"
+}
+
+### Create Complaint 4 - Food
+POST {{baseUrl}}/student/complaints
+Content-Type: application/json
+Authorization: Bearer {{studentToken}}
+
+{
+  "roomId": "{{roomId}}",
+  "category": "OTHER",
+  "title": "Poor Mess Food Quality",
+  "description": "Food quality in mess has deteriorated",
+  "priority": "LOW"
+}
+
+### Get My Complaints
+GET {{baseUrl}}/student/complaints/my-complaints
+Authorization: Bearer {{studentToken}}
+
+### Get My Complaints - Filter by Status
+GET {{baseUrl}}/student/complaints/my-complaints?status=PENDING&category=MAINTENANCE
+Authorization: Bearer {{studentToken}}
+
+### Add Comment to Complaint
+POST {{baseUrl}}/student/complaints/{{complaintId}}/comment
+Content-Type: application/json
+Authorization: Bearer {{studentToken}}
+
+{
+  "comment": "The issue is still not resolved. Please expedite the repair work.",
+  "attachmentUrl": "https://example.com/images/follow-up.jpg"
+}
+
+### ============================================
+### MAINTENANCE REQUEST MANAGEMENT
+### ============================================
+
+### Create Maintenance Request 1 - Electrical
+POST {{baseUrl}}/admin/hostel/maintenance
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "roomId": "{{roomId}}",
+  "category": "ELECTRICAL",
+  "description": "Light fixture needs replacement in room 101",
+  "priority": "HIGH",
+  "estimatedCost": 1500
+}
+
+### Create Maintenance Request 2 - Plumbing
+POST {{baseUrl}}/admin/hostel/maintenance
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "roomId": "{{roomId}}",
+  "category": "PLUMBING",
+  "description": "Water tap is leaking in bathroom",
+  "priority": "MEDIUM",
+  "estimatedCost": 800
+}
+
+### Create Maintenance Request 3 - Carpentry
+POST {{baseUrl}}/admin/hostel/maintenance
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "roomId": "{{roomId}}",
+  "category": "CARPENTRY",
+  "description": "Door hinge repair required",
+  "priority": "LOW",
+  "estimatedCost": 500
+}
+
+### Create Maintenance Request 4 - Painting
+POST {{baseUrl}}/admin/hostel/maintenance
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "buildingId": "{{buildingId}}",
+  "category": "PAINTING",
+  "description": "Corridor walls need repainting",
+  "priority": "LOW",
+  "estimatedCost": 5000
+}
+
+### Get All Maintenance Requests
+GET {{baseUrl}}/admin/hostel/maintenance
+Authorization: Bearer {{adminToken}}
+
+### Get Maintenance Requests - Filter
+GET {{baseUrl}}/admin/hostel/maintenance?status=PENDING&priority=HIGH&category=ELECTRICAL
+Authorization: Bearer {{adminToken}}
+
+### Assign Maintenance Request
+PATCH {{baseUrl}}/admin/hostel/maintenance/{{maintenanceId}}/assign
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "assignedToId": "{{studentId}}"
+}
+
+### Update Maintenance Status - In Progress
+PATCH {{baseUrl}}/admin/hostel/maintenance/{{maintenanceId}}/status
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "status": "IN_PROGRESS",
+  "notes": "Work has been started"
+}
+
+### Update Maintenance Status - Completed
+PATCH {{baseUrl}}/admin/hostel/maintenance/{{maintenanceId}}/status
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "status": "COMPLETED",
+  "actualCost": 1200,
+  "notes": "Work completed successfully"
+}
+
+### ============================================
+### PAYMENT MANAGEMENT
+### ============================================
+
+### Record Payment 1 - Cash
+POST {{baseUrl}}/admin/hostel/payments/record
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "studentId": "{{studentId}}",
+  "amount": 5000,
+  "paymentMode": "CASH",
+  "monthYear": "2024-11",
+  "transactionId": "CASH-001",
+  "remarks": "November month rent payment"
+}
+
+### Record Payment 2 - Online
+POST {{baseUrl}}/admin/hostel/payments/record
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "studentId": "{{studentId}}",
+  "amount": 5000,
+  "paymentMode": "ONLINE",
+  "monthYear": "2024-12",
+  "transactionId": "TXN123456789",
+  "remarks": "December month rent - UPI payment"
+}
+
+### Record Payment 3 - Card
+POST {{baseUrl}}/admin/hostel/payments/record
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "studentId": "{{studentId}}",
+  "amount": 5500,
+  "paymentMode": "CARD",
+  "monthYear": "2024-10",
+  "transactionId": "CARD-987654321",
+  "remarks": "October month rent with late fee"
+}
+
+### Get Payment History
+GET {{baseUrl}}/admin/hostel/payments/history
+Authorization: Bearer {{adminToken}}
+
+### Get Payment History - Filter by Student
+GET {{baseUrl}}/admin/hostel/payments/history?studentId={{studentId}}&monthYear=2024-11
+Authorization: Bearer {{adminToken}}
+
+### Get Payment History - Filter by Status
+GET {{baseUrl}}/admin/hostel/payments/history?status=PAID
+Authorization: Bearer {{adminToken}}
+
+### Generate Payment Dues for Month
+POST {{baseUrl}}/admin/hostel/payments/generate-dues
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "monthYear": "2024-12"
+}
+
+### ============================================
+### VISITOR MANAGEMENT
+### ============================================
+
+### Register Visitor 1 - Aadhaar
+POST {{baseUrl}}/admin/hostel/visitors/register
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "visitorName": "Mr. Rajesh Kumar",
+  "visitorPhone": "9876543220",
+  "visitorEmail": "rajesh@example.com",
+  "idProofType": "AADHAR",
+  "idProofNumber": "1234-5678-9012",
+  "studentId": "{{studentId}}",
+  "purpose": "Parent visit"
+}
+
+### Register Visitor 2 - PAN Card
+POST {{baseUrl}}/admin/hostel/visitors/register
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "visitorName": "Ms. Sunita Sharma",
+  "visitorPhone": "9876543221",
+  "visitorEmail": "sunita@example.com",
+  "idProofType": "PAN",
+  "idProofNumber": "ABCDE1234F",
+  "studentId": "{{studentId}}",
+  "purpose": "Family visit"
+}
+
+### Register Visitor 3 - Driving License
+POST {{baseUrl}}/admin/hostel/visitors/register
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "visitorName": "Mr. Amit Patel",
+  "visitorPhone": "9876543222",
+  "idProofType": "DRIVING_LICENSE",
+  "idProofNumber": "DL123456789",
+  "studentId": "{{studentId}}",
+  "purpose": "Friend visit"
+}
+
+### Register Visitor 4 - Passport
+POST {{baseUrl}}/admin/hostel/visitors/register
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "visitorName": "Mr. John Smith",
+  "visitorPhone": "9876543223",
+  "visitorEmail": "john@example.com",
+  "idProofType": "PASSPORT",
+  "idProofNumber": "P12345678",
+  "studentId": "{{studentId}}",
+  "purpose": "Academic collaboration"
+}
+
+### Record Visitor Exit
+PATCH {{baseUrl}}/admin/hostel/visitors/{{visitorId}}/exit
+Authorization: Bearer {{adminToken}}
+
+### Get Visitor History
+GET {{baseUrl}}/admin/hostel/visitors/history
+Authorization: Bearer {{adminToken}}
+
+### Get Visitor History - Filter by Student
+GET {{baseUrl}}/admin/hostel/visitors/history?studentId={{studentId}}
+Authorization: Bearer {{adminToken}}
+
+### Get Visitor History - Filter by Date
+GET {{baseUrl}}/admin/hostel/visitors/history?date=2024-11-17
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### ANNOUNCEMENTS
+### ============================================
+
+### Create Announcement 1 - High Priority
+POST {{baseUrl}}/admin/hostel/announcements
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "title": "Hostel Closure Notice",
+  "description": "The hostel will be closed for maintenance from Dec 25-27, 2024",
+  "priority": "URGENT",
+  "targetRole": null,
+  "imageUrl": "https://example.com/images/maintenance.jpg",
+  "expiresAt": "2024-12-27T23:59:59Z"
+}
+
+### Create Announcement 2 - Normal Priority
+POST {{baseUrl}}/admin/hostel/announcements
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "title": "Mess Menu Update",
+  "description": "New mess menu for December 2024 is now available",
+  "priority": "NORMAL",
+  "targetRole": "STUDENT"
+}
+
+### Create Announcement 3 - Low Priority
+POST {{baseUrl}}/admin/hostel/announcements
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "title": "Sports Day Registration",
+  "description": "Register for annual hostel sports day by Nov 30, 2024",
+  "priority": "NORMAL",
+  "targetRole": "STUDENT",
+  "expiresAt": "2024-11-30T23:59:59Z"
+}
+
+### Create Announcement 4 - Admin Only
+POST {{baseUrl}}/admin/hostel/announcements
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "title": "Staff Meeting Notice",
+  "description": "Monthly staff meeting scheduled for Nov 20, 2024 at 10 AM",
+  "priority": "NORMAL",
+  "targetRole": "ADMIN"
+}
+
+### Get All Announcements
+GET {{baseUrl}}/admin/hostel/announcements
+Authorization: Bearer {{adminToken}}
+
+### Get All Announcements (Student View)
+GET {{baseUrl}}/admin/hostel/announcements
+Authorization: Bearer {{studentToken}}
+
+### Update Announcement
+PUT {{baseUrl}}/admin/hostel/announcements/{{announcementId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "title": "Hostel Closure Notice - Updated",
+  "description": "The hostel will be closed for maintenance from Dec 25-28, 2024 (Extended)",
+  "priority": "URGENT",
+  "status": "PUBLISHED",
+  "expiresAt": "2024-12-28T23:59:59Z"
+}
+
+### Delete Announcement
+DELETE {{baseUrl}}/admin/hostel/announcements/{{announcementId}}
+Authorization: Bearer {{adminToken}}
+
+### Archive Announcement
+PUT {{baseUrl}}/admin/hostel/announcements/{{announcementId}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "status": "ARCHIVED"
+}

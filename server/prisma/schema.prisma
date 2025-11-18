@@ -1,0 +1,735 @@
+// Hostel Management System - SaaS Multi-Tenant Schema with Hierarchical Structure
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// TENANT MANAGEMENT (Organization/Hostel)
+// ============================================
+
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TRIAL
+}
+
+model Tenant {
+  id               String        @id @default(uuid())
+  name             String // Hostel name
+  slug             String        @unique // For subdomain or URL: hostel-name
+  description      String?       @db.Text
+  logo             String?
+  address          String?
+  city             String?
+  state            String?
+  country          String?
+  postalCode       String?
+  phone            String?
+  email            String?
+  website          String?
+  maxBuildings     Int           @default(10) // Plan limit
+  maxFloors        Int           @default(100) // Plan limit
+  maxRooms         Int           @default(500) // Plan limit
+  maxStudents      Int           @default(1000) // Plan limit
+  subscriptionPlan String        @default("BASIC") // BASIC, PRO, ENTERPRISE
+  status           TenantStatus  @default(TRIAL)
+  trialEndsAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  admins            AdminProfile[]
+  users             User[]
+  buildings         Building[]
+  floors            Floor[]
+  rooms             Room[]
+  roomAmenities     RoomAmenity[]
+  complaints        Complaint[]
+  payments          Payment[]
+  visitors          Visitor[]
+  announcements     Announcement[]
+  feeStructures     FeeStructure[]
+  roomAllocations   RoomAllocation[]
+  paymentDues       PaymentDue[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@index([slug])
+  @@index([status])
+  @@map("tenants")
+}
+
+// ============================================
+// BUILDING MANAGEMENT
+// ============================================
+
+enum BuildingStatus {
+  ACTIVE
+  INACTIVE
+  UNDER_MAINTENANCE
+  UNDER_CONSTRUCTION
+}
+
+model Building {
+  id              String          @id @default(uuid())
+  tenantId        String
+  buildingName    String
+  buildingCode    String          @unique
+  description     String?         @db.Text
+  totalFloors     Int
+  totalRooms      Int             @default(0)
+  occupiedRooms   Int             @default(0)
+  address         String          @db.Text
+  contactPerson   String?
+  contactPhone    String?
+  status          BuildingStatus  @default(ACTIVE)
+  imageUrl        String?
+  constructedYear Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  floors          Floor[]
+  rooms           Room[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@unique([tenantId, buildingCode])
+  @@index([tenantId])
+  @@index([status])
+  @@map("buildings")
+}
+
+// ============================================
+// FLOOR MANAGEMENT
+// ============================================
+
+enum FloorStatus {
+  ACTIVE
+  INACTIVE
+  UNDER_MAINTENANCE
+}
+
+model Floor {
+  id              String        @id @default(uuid())
+  tenantId        String
+  buildingId      String
+  floorNumber     Int
+  floorName       String        @default("Floor") // Can be "Ground Floor", "First Floor", etc.
+  totalRooms      Int           @default(0)
+  occupiedRooms   Int           @default(0)
+  status          FloorStatus   @default(ACTIVE)
+  description     String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building        Building      @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  rooms           Room[]
+
+  @@unique([buildingId, floorNumber])
+  @@index([tenantId])
+  @@index([buildingId])
+  @@index([status])
+  @@map("floors")
+}
+
+// ============================================
+// ROOM AMENITIES (FEATURES)
+// ============================================
+
+model RoomAmenity {
+  id              String        @id @default(uuid())
+  tenantId        String
+  amenityName     String
+  description     String?       @db.Text
+  icon            String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rooms           RoomAmenityMapping[]
+
+  @@unique([tenantId, amenityName])
+  @@index([tenantId])
+  @@map("room_amenities")
+}
+
+model RoomAmenityMapping {
+  id              String        @id @default(uuid())
+  roomId          String
+  amenityId       String
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  room            Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  amenity         RoomAmenity   @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, amenityId])
+  @@index([roomId])
+  @@index([amenityId])
+  @@map("room_amenity_mappings")
+}
+
+// ============================================
+// ROOM MANAGEMENT (HIERARCHICAL)
+// ============================================
+
+enum RoomType {
+  SINGLE
+  DOUBLE
+  TRIPLE
+  QUAD
+  DORMITORY
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  FULL
+  MAINTENANCE
+  RESERVED
+  INACTIVE
+}
+
+model Room {
+  id              String        @id @default(uuid())
+  tenantId        String
+  buildingId      String
+  floorId         String
+  roomNumber      String
+  roomName        String?       // Custom name (e.g., "Room A1")
+  roomType        RoomType
+  capacity        Int           // Total capacity
+  occupied        Int           @default(0) // Currently occupied
+  status          RoomStatus    @default(AVAILABLE)
+  description     String?       @db.Text
+  imageUrl        String?
+  // Room Specifications
+  hasAttachedBathroom Boolean   @default(false)
+  hasBalcony      Boolean       @default(false)
+  hasACFacility   Boolean       @default(false)
+  hasHotWater     Boolean       @default(false)
+  hasFurniture    Boolean       @default(true)
+  hasWifi         Boolean       @default(false)
+  hasTV           Boolean       @default(false)
+  hasRefrigerator Boolean       @default(false)
+  floorArea       Decimal?      @db.Decimal(8, 2) // in sq ft/sq m
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building            Building            @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  floor               Floor               @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  roomAllocations     RoomAllocation[]
+  amenities           RoomAmenityMapping[]
+  complaints          Complaint[]
+  feeStructure        FeeStructure?
+  maintenanceRequests MaintenanceRequest[]
+
+  @@unique([tenantId, buildingId, floorId, roomNumber])
+  @@index([tenantId])
+  @@index([buildingId])
+  @@index([floorId])
+  @@index([status])
+  @@index([roomType])
+  @@map("rooms")
+}
+
+// ============================================
+// USER MANAGEMENT (UPDATED FOR MULTI-TENANT)
+// ============================================
+
+enum UserRole {
+  ADMIN
+  WARDEN
+  FLOOR_MANAGER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model User {
+  id        String     @id @default(uuid())
+  tenantId  String
+  name      String
+  email     String
+  password  String
+  phone     String
+  role      UserRole   @default(STUDENT)
+  status    UserStatus @default(ACTIVE)
+  profilePhoto String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  studentProfile  StudentProfile?
+  roomAllocations RoomAllocation[]
+  complaints      Complaint[]
+  complaintComments ComplaintComment[]
+  payments        Payment[]
+  visitorsToMeet  Visitor[]      @relation("VisitorsToMeet")
+  visitorsRecorded Visitor[]     @relation("VisitorsRecorded")
+  announcements   Announcement[]
+  adminProfile    AdminProfile?
+  maintenanceAssignedTo MaintenanceRequest[] @relation("AssignedTo")
+  maintenanceCreatedBy MaintenanceRequest[] @relation("CreatedBy")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ============================================
+// ADMIN PROFILE (FOR SIGNUP & TENANT CREATION)
+// ============================================
+
+model AdminProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  tenantId         String
+  hostelName       String
+  hostelAddress    String    @db.Text
+  hostelPhone      String
+  hostelEmail      String
+  gstNumber        String?
+  businessLicense  String?
+  adminVerified    Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("admin_profiles")
+}
+
+// ============================================
+// STUDENT PROFILE
+// ============================================
+
+model StudentProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  guardianName     String
+  guardianPhone    String
+  guardianEmail    String?
+  address          String    @db.Text
+  emergencyContact String
+  emergencyContactPhone String
+  dateOfBirth      DateTime
+  bloodGroup       String?
+  enrollmentNumber String?
+  course           String?
+  year             String?
+  department       String?
+  universityEmail  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("student_profiles")
+}
+
+// ============================================
+// ROOM ALLOCATION
+// ============================================
+
+enum AllocationStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+  CHECKOUT_PENDING
+  CHECKED_OUT
+}
+
+model RoomAllocation {
+  id            String           @id @default(uuid())
+  tenantId      String
+  studentId     String
+  roomId        String
+  allocatedDate DateTime         @default(now())
+  checkoutDate  DateTime?
+  status        AllocationStatus @default(ACTIVE)
+  remarks       String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  room    Room @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, status])
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([roomId])
+  @@index([status])
+  @@map("room_allocations")
+}
+
+// ============================================
+// COMPLAINT MANAGEMENT
+// ============================================
+
+enum ComplaintCategory {
+  MAINTENANCE
+  ELECTRICAL
+  PLUMBING
+  HOUSEKEEPING
+  INTERNET
+  FURNITURE
+  SAFETY
+  HYGIENE
+  NOISE
+  OTHER
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ComplaintStatus {
+  PENDING
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+model Complaint {
+  id          String             @id @default(uuid())
+  tenantId    String
+  studentId   String
+  roomId      String
+  category    ComplaintCategory
+  title       String
+  description String             @db.Text
+  priority    ComplaintPriority  @default(MEDIUM)
+  status      ComplaintStatus    @default(PENDING)
+  attachmentUrl String?
+  resolvedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Relations
+  tenant   Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student  User                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  room     Room                 @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  comments ComplaintComment[]
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([roomId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([createdAt])
+  @@map("complaints")
+}
+
+model ComplaintComment {
+  id          String   @id @default(uuid())
+  complaintId String
+  userId      String
+  comment     String   @db.Text
+  isInternal  Boolean  @default(false)
+  attachmentUrl String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@index([userId])
+  @@map("complaint_comments")
+}
+
+// ============================================
+// MAINTENANCE MANAGEMENT
+// ============================================
+
+enum MaintenanceCategory {
+  PLUMBING
+  ELECTRICAL
+  CARPENTRY
+  PAINTING
+  CLEANING
+  HVAC
+  APPLIANCE_REPAIR
+  STRUCTURAL
+  OTHER
+}
+
+enum MaintenanceStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ...existing code...
+
+model MaintenanceRequest {
+  id              String              @id @default(uuid())
+  tenantId        String
+  buildingId      String
+  roomId          String?
+  createdById     String              // ADD THIS LINE
+  category        MaintenanceCategory
+  description     String              @db.Text
+  priority        MaintenancePriority @default(MEDIUM)
+  status          MaintenanceStatus   @default(PENDING)
+  assignedToId    String?
+  estimatedCost   Decimal?            @db.Decimal(10, 2)
+  actualCost      Decimal?            @db.Decimal(10, 2)
+  notes           String?             @db.Text
+  completedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building        Building            @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  room            Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  assignedTo      User?               @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy       User                @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([buildingId])
+  @@index([roomId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@map("maintenance_requests")
+}
+
+// ...existing code...
+
+// ============================================
+// PAYMENT & FEE MANAGEMENT
+// ============================================
+
+model FeeStructure {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  roomId             String   @unique
+  roomType           RoomType
+  baseFee            Decimal  @db.Decimal(10, 2)
+  electricityCharge  Decimal  @db.Decimal(10, 2) @default(0)
+  waterCharge        Decimal  @db.Decimal(10, 2) @default(0)
+  maintenanceCharge  Decimal  @db.Decimal(10, 2) @default(0)
+  wifiCharge         Decimal  @db.Decimal(10, 2) @default(0)
+  otherCharges       Decimal  @db.Decimal(10, 2) @default(0)
+  totalMonthlyFee    Decimal  @db.Decimal(10, 2)
+  effectiveFrom      DateTime @default(now())
+  effectiveTo        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([roomType])
+  @@map("fee_structures")
+}
+
+enum PaymentMode {
+  CASH
+  ONLINE
+  CARD
+  UPI
+  BANK_TRANSFER
+  CHECK
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_PAID
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  tenantId      String
+  studentId     String
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentDate   DateTime      @default(now())
+  paymentMode   PaymentMode
+  monthYear     String // Format: "YYYY-MM"
+  status        PaymentStatus @default(PENDING)
+  receiptNumber String?       @unique
+  transactionId String?
+  remarks       String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([status])
+  @@index([monthYear])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+enum DueStatus {
+  PENDING
+  OVERDUE
+  PAID
+  WAIVED
+  PARTIALLY_PAID
+}
+
+model PaymentDue {
+  id          String    @id @default(uuid())
+  tenantId    String
+  studentId   String
+  monthYear   String
+  dueAmount   Decimal   @db.Decimal(10, 2)
+  paidAmount  Decimal   @db.Decimal(10, 2) @default(0)
+  dueDate     DateTime
+  status      DueStatus @default(PENDING)
+  lateFee     Decimal   @db.Decimal(10, 2) @default(0)
+  remarks     String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, studentId, monthYear])
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("payment_dues")
+}
+
+// ============================================
+// VISITOR MANAGEMENT
+// ============================================
+
+enum IDProofType {
+  AADHAR
+  PAN
+  DRIVING_LICENSE
+  VOTER_ID
+  PASSPORT
+  STUDENT_ID
+  OTHER
+}
+
+model Visitor {
+  id            String      @id @default(uuid())
+  tenantId      String
+  visitorName   String
+  visitorPhone  String
+  visitorEmail  String?
+  idProofType   IDProofType
+  idProofNumber String
+  studentId     String // Whom to meet
+  purpose       String      @db.Text
+  entryTime     DateTime    @default(now())
+  exitTime      DateTime?
+  recordedBy    String // User who recorded
+  remarks       String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student        User   @relation("VisitorsToMeet", fields: [studentId], references: [id], onDelete: Restrict)
+  recordedByUser User   @relation("VisitorsRecorded", fields: [recordedBy], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([studentId])
+  @@index([entryTime])
+  @@index([visitorPhone])
+  @@map("visitors")
+}
+
+// ============================================
+// ANNOUNCEMENTS
+// ============================================
+
+enum AnnouncementPriority {
+  NORMAL
+  IMPORTANT
+  URGENT
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Announcement {
+  id          String                 @id @default(uuid())
+  tenantId    String
+  title       String
+  description String                 @db.Text
+  priority    AnnouncementPriority   @default(NORMAL)
+  status      AnnouncementStatus     @default(PUBLISHED)
+  postedBy    String
+  targetRole  UserRole? // null means all users
+  imageUrl    String?
+  expiresAt   DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  // Relations
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  postedByUser User   @relation(fields: [postedBy], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([priority])
+  @@index([targetRole])
+  @@index([expiresAt])
+  @@map("announcements")
+}
