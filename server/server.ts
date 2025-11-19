@@ -8,7 +8,7 @@ import roomRoutes from './routes/Admin/Hostel/room.route.ts';
 import studentsRoutes from './routes/Admin/student.route.ts';
 import hostelRoutes from './routes/Admin/Hostel/mainhostel.route.ts';
 import studentComplaintRoutes from './routes/Admin/Hostel/mainstudent.route.ts';
-
+import profileRoutes from './routes/profile.route.ts';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -30,6 +30,7 @@ app.use('/api/admin/allocation', allocationRoutes);
 app.use('/api/admin/dashboard', dashboardRoutes);
 app.use('/api/admin/room', roomRoutes);
 app.use('/api/admin/student', studentsRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Hostel Management Routes
 app.use('/api/admin/hostel', hostelRoutes);

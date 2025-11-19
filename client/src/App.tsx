@@ -10,7 +10,9 @@ import AdminDashboard from './pages/admin/Dashboard/AdminDashboard';
 import WardenDashboard from './pages/warden/DashBoard/WardenDashboard';
 import StudentDashboard from './pages/student/Dashboard/StudentDashboard';
 import Hostel from './pages/admin/Hostel/Hostel';
-import AddStudent from './pages/student/AddStudent/AddStudent';
+import AddStudent from './pages/admin/Students/AddStudent/AddStudent';
+import AllStudents from './pages/admin/Students/AllStudentsDetails/AllStudents';
+import Profile from './pages/Shared/Profile';
 
 function App() {
   return (
@@ -58,6 +60,16 @@ function App() {
             }
           />
         </Route>
+          <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Profile />} />
+        </Route>
 
         {/* Other Protected Routes */}
         <Route
@@ -70,6 +82,17 @@ function App() {
           }
         >
           <Route index element={<AddStudent />} />
+        </Route>
+        <Route
+          path="/allstudents"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN']}>
+              <AppLayout />
+              
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AllStudents />} />
         </Route>
 
         <Route

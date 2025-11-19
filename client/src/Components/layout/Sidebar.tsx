@@ -39,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     },
     {
       path: '/students',
-      label: 'Students',
+      label: 'Add Students',
       icon: Users,
       roles: ['ADMIN', 'WARDEN'],
     },
@@ -50,10 +50,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
       roles: ['ADMIN', 'WARDEN'],
     },
     {
-      path: '/attendance',
-      label: 'Attendance',
+      path: '/allstudents',
+      label: 'All Students',
       icon: UserCheck,
-      roles: ['ADMIN', 'WARDEN', 'STUDENT'],
+      roles: ['ADMIN', 'WARDEN' ],
     },
     {
       path: '/complaints',

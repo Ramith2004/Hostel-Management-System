@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap, Sparkles, CheckCircle2, Mail, Zap } from 'lucide-react';
-import HostelSelector from '../../../Components/AddStudent/HostelSelector';
-import RoomAssignmentModal from '../../../Components/AddStudent/RoomAssignmentModal';
-import SuccessModal from '../../../Components/AddStudent/SuccessModal';
+import HostelSelector from '../../../../Components/AddStudent/HostelSelector';
+import RoomAssignmentModal from '../../../../Components/AddStudent/RoomAssignmentModal';
+import SuccessModal from '../../../../Components/AddStudent/SuccessModal';
 
 interface SuccessData {
   studentName: string;

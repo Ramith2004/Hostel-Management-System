@@ -16,12 +16,22 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
 
   const userRole = localStorage.getItem('userRole');
   const userName = localStorage.getItem('userName') || 'User';
+  const profilePicture = localStorage.getItem('profilePicture');
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
     localStorage.removeItem('authToken');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userName');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('profilePicture');
+    setIsProfileOpen(false);
     navigate('/login');
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+    setIsProfileOpen(false);
   };
 
   const toggleTheme = () => {
@@ -45,6 +55,7 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
             <button
               onClick={toggleSidebar}
               className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-accent-foreground transition-colors"
+              aria-label="Toggle sidebar"
             >
               <Menu size={24} />
             </button>
@@ -59,12 +70,16 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-accent-foreground transition-colors"
+              aria-label="Toggle theme"
             >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
             {/* Notifications */}
-            <button className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-accent-foreground transition-colors relative">
+            <button
+              className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-accent-foreground transition-colors relative"
+              aria-label="Notifications"
+            >
               <Bell size={20} />
               <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
             </button>
@@ -74,9 +89,19 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors"
+                aria-label="Profile menu"
+                aria-expanded={isProfileOpen}
               >
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <User size={20} className="text-primary" />
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+                  {profilePicture ? (
+                    <img
+                      src={profilePicture}
+                      alt={userName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={20} className="text-primary" />
+                  )}
                 </div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-foreground">{userName}</p>
@@ -91,10 +116,12 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
                     className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <button
-                      onClick={() => navigate('/profile')}
+                      onClick={handleProfileClick}
                       className="w-full px-4 py-3 text-left hover:bg-accent text-foreground hover:text-accent-foreground transition-colors flex items-center gap-2"
                     >
                       <User size={16} />
@@ -114,6 +141,14 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
           </div>
         </div>
       </div>
+
+      {/* Close dropdown when clicking outside */}
+      {isProfileOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setIsProfileOpen(false)}
+        />
+      )}
     </nav>
   );
 };

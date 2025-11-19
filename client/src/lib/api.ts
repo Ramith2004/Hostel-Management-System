@@ -47,6 +47,11 @@ export const API_ROUTES = {
   ONBOARD_PAYMENT: `${BASE_URL}/api/auth/onboarding/payment`,
   ONBOARD_COMPLETE: `${BASE_URL}/api/auth/onboarding/complete`,
 
+  // User Profile Routes
+  USER_PROFILE: `${BASE_URL}/api/profile/profile`,
+  USER_CHANGE_PASSWORD: `${BASE_URL}/api/profile/change-password`,
+  USER_PROFILE_PICTURE: `${BASE_URL}/api/profile/profile-picture`,
+
   // Student Profile Routes
   STUDENT_PROFILE: `${BASE_URL}/api/student-profile`,
   STUDENT_PROFILE_BY_ID: (id: string) => `${BASE_URL}/api/student-profile/${id}`,
