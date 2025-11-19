@@ -1,4 +1,5 @@
 export interface CreateStudentProfileDTO {
+  emergencyContactPhone: any;
   guardianName: string;
   guardianPhone: string;
   address: string;

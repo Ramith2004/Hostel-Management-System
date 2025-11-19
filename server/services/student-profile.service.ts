@@ -32,6 +32,7 @@ export class StudentProfileService {
         guardianPhone: data.guardianPhone,
         address: data.address,
         emergencyContact: data.emergencyContact,
+        emergencyContactPhone: data.emergencyContactPhone, // Add this line
         dateOfBirth: new Date(data.dateOfBirth),
         bloodGroup: data.bloodGroup ?? null,
         enrollmentNumber: data.enrollmentNumber ?? null,
