@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.GMAIL_EMAIL,
     pass: process.env.GMAIL_APP_PASSWORD,
   },
-  connectionTimeout: 5000,
+  connectionTimeout: 50000,
   socketTimeout: 5000,
   pool: true,
   maxConnections: 1,
