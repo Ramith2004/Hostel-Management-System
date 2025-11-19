@@ -1,12 +1,13 @@
-import  prisma  from "../utils/prisma.ts";
+import prisma from "../utils/prisma.ts";
 import type { CreateRoomDTO, UpdateRoomDTO, BulkRoomCreateDTO } from "../types/room.type.ts";
 
 export class RoomService {
-  static async createRoom(tenantId: string, data: CreateRoomDTO) {
+  static async createRoom(tenantId: string, buildingId: string, data: CreateRoomDTO) {
     // Check if room number already exists
-    const existingRoom = await prisma.room.findUnique({
+    const existingRoom = await prisma.room.findFirst({
       where: {
-        tenantId_roomNumber: { tenantId, roomNumber: data.roomNumber },
+        tenantId,
+        roomNumber: data.roomNumber,
       },
     });
 
@@ -14,13 +15,26 @@ export class RoomService {
       throw new Error("Room number already exists");
     }
 
+    // Get or create floor
+    const floor = await prisma.floor.findFirst({
+      where: {
+        buildingId,
+        floorNumber: data.floor,
+      },
+    });
+
+    if (!floor) {
+      throw new Error("Floor not found in this building");
+    }
+
     const room = await prisma.room.create({
       data: {
         tenantId,
+        buildingId,
+        floorId: floor.id,
         roomNumber: data.roomNumber,
-        floor: data.floor,
-        capacity: data.capacity,
         roomType: data.roomType,
+        capacity: data.capacity,
       },
     });
 
@@ -31,6 +45,8 @@ export class RoomService {
     const room = await prisma.room.findFirst({
       where: { id: roomId, tenantId },
       include: {
+        floor: true,
+        building: true,
         roomAllocations: {
           where: { status: "ACTIVE" },
           include: {
@@ -56,7 +72,7 @@ export class RoomService {
   static async getAllRooms(
     tenantId: string,
     filters?: {
-      floor?: number;
+      floorNumber?: number;
       roomType?: string;
       status?: string;
     },
@@ -64,7 +80,9 @@ export class RoomService {
   ) {
     const where: any = { tenantId };
 
-    if (filters?.floor) where.floor = filters.floor;
+    if (filters?.floorNumber) {
+      where.floor = { floorNumber: filters.floorNumber };
+    }
     if (filters?.roomType) where.roomType = filters.roomType;
     if (filters?.status) where.status = filters.status;
 
@@ -73,7 +91,8 @@ export class RoomService {
         where,
         ...(pagination?.skip !== undefined && { skip: pagination.skip }),
         ...(pagination?.take !== undefined && { take: pagination.take }),
-        orderBy: { floor: "asc" },
+        orderBy: { roomNumber: "asc" },
+        include: { floor: true, building: true },
       }),
       prisma.room.count({ where }),
     ]);
@@ -97,7 +116,6 @@ export class RoomService {
 
     const updateData: any = {};
     if (data.roomNumber !== undefined) updateData.roomNumber = data.roomNumber;
-    if (data.floor !== undefined) updateData.floor = data.floor;
     if (data.capacity !== undefined) updateData.capacity = data.capacity;
     if (data.roomType !== undefined) updateData.roomType = data.roomType;
     if (data.status !== undefined) updateData.status = data.status;
@@ -135,15 +153,28 @@ export class RoomService {
     return { message: "Room deleted successfully" };
   }
 
-  static async bulkCreateRooms(tenantId: string, data: BulkRoomCreateDTO) {
+  static async bulkCreateRooms(tenantId: string, buildingId: string, data: BulkRoomCreateDTO) {
     const rooms = [];
+
+    // Get or create floor
+    const floor = await prisma.floor.findFirst({
+      where: {
+        buildingId,
+        floorNumber: data.floorNumber,
+      },
+    });
+
+    if (!floor) {
+      throw new Error("Floor not found in this building");
+    }
 
     for (let i = data.startRoomNumber; i <= data.endRoomNumber; i++) {
       const roomNumber = `${data.floorNumber}-${String(i).padStart(2, "0")}`;
 
-      const existingRoom = await prisma.room.findUnique({
+      const existingRoom = await prisma.room.findFirst({
         where: {
-          tenantId_roomNumber: { tenantId, roomNumber },
+          tenantId,
+          roomNumber,
         },
       });
 
@@ -151,10 +182,11 @@ export class RoomService {
         const room = await prisma.room.create({
           data: {
             tenantId,
+            buildingId,
+            floorId: floor.id,
             roomNumber,
-            floor: data.floorNumber,
             capacity: data.capacity,
-            roomType: data.roomType,
+            roomType: data.roomType as any,
           },
         });
 

@@ -48,5 +48,5 @@ export interface BulkRoomCreateDTO {
   startRoomNumber: number;
   endRoomNumber: number;
   capacity: number;
-  roomType: RoomType;
+  roomType: string;
 }
