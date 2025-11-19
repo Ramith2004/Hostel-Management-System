@@ -9,11 +9,23 @@ import studentsRoutes from './routes/Admin/student.route.ts';
 import hostelRoutes from './routes/Admin/Hostel/mainhostel.route.ts';
 import studentComplaintRoutes from './routes/Admin/Hostel/mainstudent.route.ts';
 import profileRoutes from './routes/profile.route.ts';
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS Configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:5173',
+    'https://hostel-x.vercel.app',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use((req, res, next) => {
@@ -37,6 +49,7 @@ app.use('/api/admin/hostel', hostelRoutes);
 
 // Student Routes (Complaints, etc.)
 app.use('/api/student', studentComplaintRoutes);
+
 // Sample route
 app.get('/', (req, res) => {
   res.send('Hospital Management API is running');
