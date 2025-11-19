@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Loader, AlertCircle, CheckCircle2, Mail } from 'lucide-react';
+import { Loader, AlertCircle, Mail } from 'lucide-react';
 import { createStudentWithRoomAssignment } from '../../lib/student.api';
 
 interface Room {
@@ -76,18 +76,17 @@ export default function StudentDetailsForm({
     }));
   };
 
-  const validateForm = () => {
-    if (!formData.name.trim()) return 'Name is required';
-    if (!formData.email.trim()) return 'Email is required';
-    if (!formData.email.includes('@')) return 'Invalid email format';
-    if (!formData.phone.trim()) return 'Phone is required';
-    if (formData.phone.length < 10) return 'Phone must be at least 10 digits';
-    if (!formData.guardianName.trim()) return 'Guardian name is required';
-    if (!formData.guardianPhone.trim()) return 'Guardian phone is required';
-    if (!formData.address.trim()) return 'Address is required';
-    if (!formData.dateOfBirth) return 'Date of birth is required';
-    if (!formData.emergencyContact.trim()) return 'Emergency contact is required';
-    if (!formData.emergencyContactPhone.trim()) return 'Emergency contact phone is required';
+  const validateForm = (): string | null => {
+    if (!formData.name?.trim()) return 'Name is required';
+    if (!formData.email?.trim()) return 'Email is required';
+    if (!formData.email.includes('@')) return 'Invalid email';
+    if (!formData.phone?.trim() || formData.phone.length < 10) return 'Valid phone required';
+    if (!formData.guardianName?.trim()) return 'Guardian name required';
+    if (!formData.guardianPhone?.trim()) return 'Guardian phone required';
+    if (!formData.address?.trim()) return 'Address required';
+    if (!formData.dateOfBirth) return 'Date of birth required';
+    if (!formData.emergencyContact?.trim()) return 'Emergency contact required';
+    if (!formData.emergencyContactPhone?.trim()) return 'Emergency phone required';
     return null;
   };
 
@@ -110,7 +109,7 @@ export default function StudentDetailsForm({
         roomId: room.id,
       };
 
-      const response = await createStudentWithRoomAssignment(payload);
+      await createStudentWithRoomAssignment(payload);
 
       onSuccess({
         studentName: formData.name,
@@ -120,6 +119,13 @@ export default function StudentDetailsForm({
           floorName: floor?.floorName || 'N/A',
           buildingName: building.buildingName,
         },
+      });
+
+      // Reset form
+      setFormData({
+        name: '', email: '', phone: '', guardianName: '', guardianPhone: '',
+        address: '', dateOfBirth: '', emergencyContact: '', emergencyContactPhone: '',
+        course: '', year: '', enrollmentNumber: '',
       });
     } catch (err: any) {
       setError(err.message || 'Failed to create student');
@@ -137,32 +143,23 @@ export default function StudentDetailsForm({
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4"
       >
-        <p className="text-sm text-slate-600 mb-2">Room Assignment Summary</p>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-semibold text-slate-900">
-              {building.buildingName} • {floor?.floorName || 'Floor'} • Room {room.roomNumber}
-            </p>
-            <p className="text-sm text-slate-600">{room.roomType} Room • Capacity: {room.capacity}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-slate-600">Type</p>
-            <p className="font-bold text-blue-600">{room.roomType}</p>
-          </div>
-        </div>
+        <p className="text-sm text-slate-600 mb-2">Room Assignment</p>
+        <p className="font-semibold text-slate-900">
+          {building.buildingName} • {floor?.floorName || 'Floor'} • Room {room.roomNumber}
+        </p>
+        <p className="text-sm text-slate-600">{room.roomType} • Capacity: {room.capacity}</p>
       </motion.div>
 
       {/* Error Alert */}
       {error && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3"
         >
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-red-900 font-medium">Validation Error</p>
-            <p className="text-red-700 text-sm">{error}</p>
+            <p className="text-red-900 font-medium text-sm">{error}</p>
           </div>
         </motion.div>
       )}
@@ -171,214 +168,69 @@ export default function StudentDetailsForm({
 
       {/* Name & Email */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Full Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            placeholder="John Doe"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Email <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            placeholder="john@example.com"
-          />
-        </div>
+        <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Full Name *" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email *" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
       </div>
 
       {/* Phone & DOB */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Phone <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="tel"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            placeholder="9876543210"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Date of Birth <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            name="dateOfBirth"
-            value={formData.dateOfBirth}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-          />
-        </div>
+        <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone *" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        <input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
       </div>
 
-      {/* Guardian Details */}
-      <div className="pt-4 border-t border-slate-200">
-        <h4 className="text-sm font-semibold text-slate-900 mb-4">Guardian Information</h4>
+      {/* Guardian */}
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-semibold text-slate-900 mb-3">Guardian Info</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Guardian Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="guardianName"
-              value={formData.guardianName}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="Parent Name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Guardian Phone <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              name="guardianPhone"
-              value={formData.guardianPhone}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="9876543210"
-            />
-          </div>
+          <input type="text" name="guardianName" value={formData.guardianName} onChange={handleChange} placeholder="Guardian Name *" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          <input type="tel" name="guardianPhone" value={formData.guardianPhone} onChange={handleChange} placeholder="Guardian Phone *" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
         </div>
       </div>
 
       {/* Address */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          Address <span className="text-red-500">*</span>
-        </label>
-        <textarea
-          name="address"
-          value={formData.address}
-          onChange={handleChange}
-          rows={3}
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
-          placeholder="Enter full address"
-        />
-      </div>
+      <textarea name="address" value={formData.address} onChange={handleChange} rows={2} placeholder="Address *" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" />
 
       {/* Emergency Contact */}
-      <div className="pt-4 border-t border-slate-200">
-        <h4 className="text-sm font-semibold text-slate-900 mb-4">Emergency Contact</h4>
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-semibold text-slate-900 mb-3">Emergency Contact</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Contact Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="emergencyContact"
-              value={formData.emergencyContact}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="Emergency Contact Name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Contact Phone <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              name="emergencyContactPhone"
-              value={formData.emergencyContactPhone}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="9876543210"
-            />
-          </div>
+          <input type="text" name="emergencyContact" value={formData.emergencyContact} onChange={handleChange} placeholder="Contact Name *" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          <input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone} onChange={handleChange} placeholder="Contact Phone *" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
         </div>
       </div>
 
       {/* Academic Info */}
-      <div className="pt-4 border-t border-slate-200">
-        <h4 className="text-sm font-semibold text-slate-900 mb-4">Academic Information</h4>
+      <div className="pt-4 border-t">
+        <h4 className="text-sm font-semibold text-slate-900 mb-3">Academic Info</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Enrollment Number
-            </label>
-            <input
-              type="text"
-              name="enrollmentNumber"
-              value={formData.enrollmentNumber}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="Enrollment #"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Course
-            </label>
-            <input
-              type="text"
-              name="course"
-              value={formData.course}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="B.Tech"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Year
-            </label>
-            <input
-              type="text"
-              name="year"
-              value={formData.year}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              placeholder="1st Year"
-            />
-          </div>
+          <input type="text" name="enrollmentNumber" value={formData.enrollmentNumber} onChange={handleChange} placeholder="Enrollment #" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          <input type="text" name="course" value={formData.course} onChange={handleChange} placeholder="Course" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          <input type="text" name="year" value={formData.year} onChange={handleChange} placeholder="Year" className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
         </div>
       </div>
 
-      {/* Submit Button */}
+      {/* Submit */}
       <motion.button
         type="submit"
         disabled={loading}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition disabled:opacity-70 flex items-center justify-center gap-2"
+        className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {loading ? (
           <>
-            <Loader className="w-5 h-5 animate-spin" />
-            Creating & Sending Email...
+            <Loader className="w-4 h-4 animate-spin" />
+            Sending...
           </>
         ) : (
           <>
-            <Mail className="w-5 h-5" />
-            Confirm & Send Email
+            <Mail className="w-4 h-4" />
+            Confirm & Send
           </>
         )}
       </motion.button>
 
-      <p className="text-xs text-slate-600 text-center">
-        Temporary password will be sent to student email
-      </p>
+      <p className="text-xs text-slate-600 text-center">Password will be sent to email</p>
     </form>
   );
 }
