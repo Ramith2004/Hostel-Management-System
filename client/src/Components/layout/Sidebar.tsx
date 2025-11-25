@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -11,9 +11,10 @@ import {
   Calendar,
   Package,
   ClipboardList,
-  Building2
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -24,10 +25,18 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   roles: string[];
+  children?: NavItem[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const userRole = localStorage.getItem('userRole') || '';
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  const toggleExpand = (path: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(path) ? prev.filter((item) => item !== path) : [...prev, path]
+    );
+  };
 
   // Navigation items based on roles
   const navItems: NavItem[] = [
@@ -53,13 +62,35 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
       path: '/allstudents',
       label: 'All Students',
       icon: UserCheck,
-      roles: ['ADMIN', 'WARDEN' ],
+      roles: ['ADMIN', 'WARDEN'],
     },
+    // Admin/Warden Complaints with Submenu
     {
-      path: '/complaints',
+      path: '/admin/complaints',
       label: 'Complaints',
       icon: ClipboardList,
-      roles: ['ADMIN', 'WARDEN', 'STUDENT'],
+      roles: ['ADMIN', 'WARDEN'],
+      children: [
+        {
+          path: '/admin/complaints',
+          label: 'All Complaints',
+          icon: ClipboardList,
+          roles: ['ADMIN', 'WARDEN'],
+        },
+        {
+          path: '/admin/complaints/reports',
+          label: 'Reports',
+          icon: FileText,
+          roles: ['ADMIN', 'WARDEN'],
+        },
+      ],
+    },
+    // Student Complaints (no submenu)
+    {
+      path: '/student/complaints',
+      label: 'My Complaints',
+      icon: ClipboardList,
+      roles: ['STUDENT'],
     },
     {
       path: '/payments',
@@ -94,9 +125,63 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   ];
 
   // Filter navigation items based on user role
-  const filteredNavItems = navItems.filter((item) =>
-    item.roles.includes(userRole)
-  );
+  const filteredNavItems = navItems.filter((item) => item.roles.includes(userRole));
+
+  const renderNavItem = (item: NavItem, depth = 0) => {
+    const Icon = item.icon;
+    const hasChildren = item.children && item.children.length > 0;
+    const isExpanded = expandedItems.includes(item.path);
+
+    if (hasChildren) {
+      return (
+        <div key={item.path}>
+          <button
+            onClick={() => toggleExpand(item.path)}
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            style={{ paddingLeft: `${(depth + 1) * 1}rem` }}
+          >
+            <div className="flex items-center gap-3">
+              <Icon size={20} />
+              <span className="font-medium">{item.label}</span>
+            </div>
+            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                {item.children?.map((child) => renderNavItem(child, depth + 1))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    }
+
+    return (
+      <NavLink
+        key={item.path}
+        to={item.path}
+        className={({ isActive }) =>
+          `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+            isActive
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          }`
+        }
+        style={{ paddingLeft: `${(depth + 1) * 1}rem` }}
+      >
+        <Icon size={20} />
+        <span className="font-medium">{item.label}</span>
+      </NavLink>
+    );
+  };
 
   return (
     <motion.aside
@@ -110,27 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         isOpen ? 'block' : 'hidden'
       }`}
     >
-      <nav className="p-4 space-y-2">
-        {filteredNavItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`
-              }
-            >
-              <Icon size={20} />
-              <span className="font-medium">{item.label}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
+      <nav className="p-4 space-y-2">{filteredNavItems.map((item) => renderNavItem(item))}</nav>
     </motion.aside>
   );
 };

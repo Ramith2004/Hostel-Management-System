@@ -281,6 +281,7 @@ model User {
   roomAllocations RoomAllocation[]
   complaints      Complaint[]
   complaintComments ComplaintComment[]
+  complaintsResolved Complaint[]       @relation("ComplaintResolvedBy")
   payments        Payment[]
   visitorsToMeet  Visitor[]      @relation("VisitorsToMeet")
   visitorsRecorded Visitor[]     @relation("VisitorsRecorded")
@@ -430,7 +431,7 @@ model Complaint {
   id          String             @id @default(uuid())
   tenantId    String
   studentId   String
-  roomId      String
+  roomId      String?            // Already optional
   category    ComplaintCategory
   title       String
   description String             @db.Text
@@ -438,13 +439,16 @@ model Complaint {
   status      ComplaintStatus    @default(PENDING)
   attachmentUrl String?
   resolvedAt  DateTime?
+  resolvedBy  String?
+  resolutionNotes String?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
   // Relations
   tenant   Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   student  User                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  room     Room                 @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  room     Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)  // Change Restrict to SetNull
+  resolvedByUser User?          @relation("ComplaintResolvedBy", fields: [resolvedBy], references: [id], onDelete: SetNull)
   comments ComplaintComment[]
 
   @@index([tenantId])
@@ -462,9 +466,11 @@ model ComplaintComment {
   complaintId String
   userId      String
   comment     String   @db.Text
-  isInternal  Boolean  @default(false)
+  isInternal  Boolean  @default(false) // Hide from students if true
   attachmentUrl String?
+  commentType String?  @default("COMMENT") // Add: COMMENT, STATUS_UPDATE, RESOLUTION
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt   // ADD THIS (was missing)
 
   // Relations
   complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
@@ -472,8 +478,11 @@ model ComplaintComment {
 
   @@index([complaintId])
   @@index([userId])
+  @@index([createdAt])  // ADD THIS for sorting
   @@map("complaint_comments")
 }
+
+
 
 // ============================================
 // MAINTENANCE MANAGEMENT

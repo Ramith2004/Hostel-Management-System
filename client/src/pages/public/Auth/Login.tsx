@@ -20,31 +20,35 @@ export default function Login() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
+  e.preventDefault();
+  setLoading(true);
+  setError('');
+  setSuccess('');
 
-    try {
-      const response = await api.post(API_ROUTES.LOGIN, formData);
-      setSuccess('Login successful! Redirecting to dashboard...');
-      if (response.data.token) {
-        localStorage.setItem('authToken', response.data.token);
-      }
-      
-if (response.data.user && response.data.user.role) {
-  localStorage.setItem('userRole', response.data.user.role);
-}
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1200);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
-      setError(Array.isArray(errorMessage) ? errorMessage[0]?.message : errorMessage);
-    } finally {
-      setLoading(false);
+  try {
+    const response = await api.post(API_ROUTES.LOGIN, formData);
+    setSuccess('Login successful! Redirecting to dashboard...');
+    
+    if (response.data.token) {
+      localStorage.setItem('authToken', response.data.token);
     }
-  };
+    
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userRole', response.data.user.role);
+    }
+    
+    setTimeout(() => {
+      navigate('/dashboard');
+    }, 1200);
+  } catch (err: any) {
+    const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
+    setError(Array.isArray(errorMessage) ? errorMessage[0]?.message : errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
+// ...existing code...
 
   // Animation variants
   const containerVariants = {

@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import prisma from "../../../utils/prisma.ts";
 import { errorHandler } from "../../../utils/error-handler.ts";
-import { responseHandler } from "../../../utils/response-handler.ts";
+import { sendResponse } from "../../../utils/response-handler.ts";
 import type { AuthUser } from "../../../types/auth-user.ts";
 
 declare global {
@@ -19,7 +19,7 @@ export const createAmenity = async (req: Request, res: Response) => {
     const { amenityName, description, icon } = req.body;
 
     if (!amenityName) {
-      return responseHandler(res, 400, "Amenity name is required");
+      return sendResponse(res, 400, "Amenity name is required");
     }
 
     // Check if amenity already exists
@@ -31,7 +31,7 @@ export const createAmenity = async (req: Request, res: Response) => {
     });
 
     if (existingAmenity) {
-      return responseHandler(res, 400, "Amenity already exists");
+      return sendResponse(res, 400, "Amenity already exists");
     }
 
     const amenity = await prisma.roomAmenity.create({
@@ -43,7 +43,7 @@ export const createAmenity = async (req: Request, res: Response) => {
       },
     });
 
-    responseHandler(res, 201, "Amenity created successfully", amenity);
+      sendResponse(res, 201, "Amenity created successfully", amenity);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -72,7 +72,7 @@ export const getAllAmenities = async (req: Request, res: Response) => {
       orderBy: { createdAt: "desc" },
     });
 
-    responseHandler(res, 200, "Amenities fetched successfully", amenities);
+    sendResponse(res, 200, "Amenities fetched successfully", amenities);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -85,7 +85,7 @@ export const getAmenityById = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!amenityId) {
-      return responseHandler(res, 400, "Amenity ID is required");
+      return sendResponse(res, 400, "Amenity ID is required");
     }
 
     const amenity = await prisma.roomAmenity.findFirst({
@@ -111,10 +111,10 @@ export const getAmenityById = async (req: Request, res: Response) => {
     });
 
     if (!amenity) {
-      return responseHandler(res, 404, "Amenity not found");
+      return  sendResponse(res, 404, "Amenity not found");
     }
 
-    responseHandler(res, 200, "Amenity fetched successfully", amenity);
+    sendResponse(res, 200, "Amenity fetched successfully", amenity);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -128,7 +128,7 @@ export const updateAmenity = async (req: Request, res: Response) => {
     const { amenityName, description, icon } = req.body;
 
     if (!amenityId) {
-      return responseHandler(res, 400, "Amenity ID is required");
+      return sendResponse(res, 400, "Amenity ID is required");
     }
 
     const amenity = await prisma.roomAmenity.updateMany({
@@ -144,14 +144,14 @@ export const updateAmenity = async (req: Request, res: Response) => {
     });
 
     if (amenity.count === 0) {
-      return responseHandler(res, 404, "Amenity not found");
+      return  sendResponse(res, 404, "Amenity not found");
     }
 
     const updatedAmenity = await prisma.roomAmenity.findUnique({
       where: { id: amenityId },
     });
 
-    responseHandler(res, 200, "Amenity updated successfully", updatedAmenity);
+    sendResponse(res, 200, "Amenity updated successfully", updatedAmenity);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -164,7 +164,7 @@ export const deleteAmenity = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!amenityId) {
-      return responseHandler(res, 400, "Amenity ID is required");
+      return sendResponse(res, 400, "Amenity ID is required");
     }
 
     const amenity = await prisma.roomAmenity.findFirst({
@@ -175,14 +175,14 @@ export const deleteAmenity = async (req: Request, res: Response) => {
     });
 
     if (!amenity) {
-      return responseHandler(res, 404, "Amenity not found");
+      return sendResponse(res, 404, "Amenity not found");
     }
 
     await prisma.roomAmenity.delete({
       where: { id: amenityId },
     });
 
-    responseHandler(res, 200, "Amenity deleted successfully");
+      sendResponse(res, 200, "Amenity deleted successfully");
   } catch (error) {
     errorHandler(res, error);
   }
@@ -195,7 +195,7 @@ export const addAmenityToRoom = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!roomId || !amenityId) {
-      return responseHandler(res, 400, "Room ID and Amenity ID are required");
+      return sendResponse(res, 400, "Room ID and Amenity ID are required");
     }
 
     // Verify room belongs to tenant
@@ -217,7 +217,7 @@ export const addAmenityToRoom = async (req: Request, res: Response) => {
     });
 
     if (!room) {
-      return responseHandler(res, 404, "Room not found");
+      return sendResponse(res, 404, "Room not found");
     }
 
     // Verify amenity belongs to tenant
@@ -226,7 +226,7 @@ export const addAmenityToRoom = async (req: Request, res: Response) => {
     });
 
     if (!amenity) {
-      return responseHandler(res, 404, "Amenity not found");
+      return sendResponse(res, 404, "Amenity not found");
     }
 
     // Check if amenity already added
@@ -235,7 +235,7 @@ export const addAmenityToRoom = async (req: Request, res: Response) => {
     });
 
     if (existing) {
-      return responseHandler(
+      return sendResponse(
         res,
         400,
         `Amenity "${amenity.amenityName}" already added to Room ${room.roomNumber}`
@@ -262,7 +262,7 @@ export const addAmenityToRoom = async (req: Request, res: Response) => {
       },
     });
 
-    responseHandler(
+    sendResponse(
       res,
       201,
       `Amenity "${mapping.amenity.amenityName}" added to Room ${mapping.room.roomNumber} successfully`,
@@ -279,7 +279,7 @@ export const removeAmenityFromRoom = async (req: Request, res: Response) => {
     const { mappingId } = req.params;
 
     if (!mappingId) {
-      return responseHandler(res, 400, "Mapping ID is required");
+      return sendResponse(res, 400, "Mapping ID is required");
     }
 
     const mapping = await prisma.roomAmenityMapping.findUnique({
@@ -299,14 +299,14 @@ export const removeAmenityFromRoom = async (req: Request, res: Response) => {
     });
 
     if (!mapping) {
-      return responseHandler(res, 404, "Amenity mapping not found");
+      return sendResponse(res, 404, "Amenity mapping not found");
     }
 
     await prisma.roomAmenityMapping.delete({
       where: { id: mappingId },
     });
 
-    responseHandler(
+    sendResponse(
       res,
       200,
       `Amenity "${mapping.amenity.amenityName}" removed from Room ${mapping.room.roomNumber} successfully`
@@ -323,7 +323,7 @@ export const getRoomAmenities = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!roomId) {
-      return responseHandler(res, 400, "Room ID is required");
+      return sendResponse(res, 400, "Room ID is required");
     }
 
     // Verify room exists
@@ -332,7 +332,7 @@ export const getRoomAmenities = async (req: Request, res: Response) => {
     });
 
     if (!room) {
-      return responseHandler(res, 404, "Room not found");
+      return sendResponse(res, 404, "Room not found");
     }
 
     const amenities = await prisma.roomAmenityMapping.findMany({
@@ -349,7 +349,7 @@ export const getRoomAmenities = async (req: Request, res: Response) => {
       },
     });
 
-    responseHandler(res, 200, "Room amenities fetched successfully", {
+    sendResponse(res, 200, "Room amenities fetched successfully", {
       roomId,
       roomNumber: room.roomNumber,
       amenitiesCount: amenities.length,
@@ -367,7 +367,7 @@ export const bulkAddAmenitiesToRoom = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!roomId || !amenityIds || !Array.isArray(amenityIds) || amenityIds.length === 0) {
-      return responseHandler(
+      return sendResponse(
         res,
         400,
         "Room ID and array of Amenity IDs are required"
@@ -380,7 +380,7 @@ export const bulkAddAmenitiesToRoom = async (req: Request, res: Response) => {
     });
 
     if (!room) {
-      return responseHandler(res, 404, "Room not found");
+      return sendResponse(res, 404, "Room not found");
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -421,7 +421,7 @@ export const bulkAddAmenitiesToRoom = async (req: Request, res: Response) => {
       return { added, errors };
     });
 
-    responseHandler(res, 201, "Amenities added to room", result);
+    sendResponse(res, 201, "Amenities added to room", result);
   } catch (error) {
     errorHandler(res, error);
   }

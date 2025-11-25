@@ -13,6 +13,12 @@ import Hostel from './pages/admin/Hostel/Hostel';
 import AddStudent from './pages/admin/Students/AddStudent/AddStudent';
 import AllStudents from './pages/admin/Students/AllStudentsDetails/AllStudents';
 import Profile from './pages/Shared/Profile';
+import { MyComplaints } from './pages/student/Complaints/MyComplaints';
+import { ComplaintDetail } from './pages/Shared/StudentComplaintDetail';
+import { AllComplaints } from './pages/admin/Complaints/AllComplaints';
+import { AdminComplaintDetail } from './pages/Shared/AdminComplaintDetail';
+import { ComplaintResolution } from './pages/admin/Complaints/ComplaintResolution';
+import { ComplaintReports } from './pages/admin/Complaints/ComplaintReports';
 
 function App() {
   return (
@@ -60,7 +66,9 @@ function App() {
             }
           />
         </Route>
-          <Route
+
+        {/* Profile Route */}
+        <Route
           path="/profile"
           element={
             <ProtectedRoute>
@@ -71,13 +79,52 @@ function App() {
           <Route index element={<Profile />} />
         </Route>
 
-        {/* Other Protected Routes */}
+        {/* Complaint Redirect Route */}
+        <Route
+          path="/complaints"
+          element={
+            <ProtectedRoute>
+              <ComplaintRedirect />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Student Complaint Routes */}
+        <Route
+          path="/student/complaints"
+          element={
+            <ProtectedRoute allowedRoles={['STUDENT']}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<MyComplaints />} />
+          <Route path=":id" element={<ComplaintDetail />} />
+        </Route>
+
+        {/* Admin Complaint Routes - IMPORTANT: Specific routes BEFORE :id */}
+        <Route
+          path="/admin/complaints"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN']}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AllComplaints />} />
+          {/* Specific routes MUST come before the dynamic :id route */}
+          <Route path="resolution" element={<ComplaintResolution />} />
+          <Route path="reports" element={<ComplaintReports />} />
+          {/* Dynamic :id route MUST be last */}
+          <Route path=":id" element={<AdminComplaintDetail />} />
+        </Route>
+
+        {/* Student Management Routes */}
         <Route
           path="/students"
           element={
             <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN']}>
               <AppLayout />
-              
             </ProtectedRoute>
           }
         >
@@ -88,13 +135,13 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN']}>
               <AppLayout />
-              
             </ProtectedRoute>
           }
         >
           <Route index element={<AllStudents />} />
         </Route>
 
+        {/* Room Management Routes */}
         <Route
           path="/rooms"
           element={
@@ -124,6 +171,21 @@ const DashboardRedirect = () => {
       return <Navigate to="/dashboard/warden" replace />;
     case 'STUDENT':
       return <Navigate to="/dashboard/student" replace />;
+    default:
+      return <Navigate to="/login" replace />;
+  }
+};
+
+// Helper component to redirect to role-specific complaint page
+const ComplaintRedirect = () => {
+  const userRole = localStorage.getItem('userRole');
+  
+  switch (userRole) {
+    case 'STUDENT':
+      return <Navigate to="/student/complaints" replace />;
+    case 'ADMIN':
+    case 'WARDEN':
+      return <Navigate to="/admin/complaints" replace />;
     default:
       return <Navigate to="/login" replace />;
   }

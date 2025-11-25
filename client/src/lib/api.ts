@@ -29,6 +29,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired or invalid
       localStorage.removeItem('authToken');
+      localStorage.removeItem('user'); // Also remove user data
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -85,10 +86,25 @@ export const API_ROUTES = {
   HOSTEL_MAINTENANCE: `${BASE_URL}/api/admin/hostel/maintenance`,
   HOSTEL_PAYMENTS: `${BASE_URL}/api/admin/hostel/payments`,
   HOSTEL_VISITORS: `${BASE_URL}/api/admin/hostel/visitors`,
-  // Student Complaint Routes
-  STUDENT_COMPLAINTS: `${BASE_URL}/api/student/complaint`,
-  STUDENT_COMPLAINT_BY_ID: (id: string) => `${BASE_URL}/api/student/complaint/${id}`,
-  ADMIN_COMPLAINTS: `${BASE_URL}/api/admin/hostel/complaint`,
+  
+  // Student Complaint Routes - Phase 5 (Primary routes - these are correct)
+  STUDENT_COMPLAINTS_SUBMIT: (tenantId: string) => `${BASE_URL}/api/complaints/student/${tenantId}/submit`,
+  STUDENT_COMPLAINTS_LIST: (tenantId: string) => `${BASE_URL}/api/complaints/student/${tenantId}/my-complaints`,
+  STUDENT_COMPLAINT_DETAIL: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/student/${tenantId}/${complaintId}`,
+  STUDENT_COMPLAINT_COMMENTS: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/student/${tenantId}/${complaintId}/comments`,
+  STUDENT_COMPLAINT_ADD_COMMENT: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/student/${tenantId}/${complaintId}/comments`,
+
+  // Admin Complaint Resolution Routes - Phase 5
+   ADMIN_COMPLAINTS_LIST: (tenantId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/all`,
+  ADMIN_COMPLAINT_DETAIL: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/${complaintId}`,
+  ADMIN_COMPLAINT_UPDATE_STATUS: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/${complaintId}/status`,
+  ADMIN_COMPLAINT_RESOLVE: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/${complaintId}/resolve`,
+  ADMIN_COMPLAINT_COMMENTS: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/${complaintId}/comments`,
+  ADMIN_COMPLAINT_ADD_COMMENT: (tenantId: string, complaintId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/${complaintId}/comments`,
+  ADMIN_COMPLAINT_STATS: (tenantId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/stats`,
+  ADMIN_COMPLAINT_BY_CATEGORY: (tenantId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/by-category`,
+  ADMIN_COMPLAINT_REPORT: (tenantId: string) => `${BASE_URL}/api/complaints/admin/${tenantId}/report`,
 };
+
 
 export default api;

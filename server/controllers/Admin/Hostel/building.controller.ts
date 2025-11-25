@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import prisma from "../../../utils/prisma.ts";
 import { errorHandler } from "../../../utils/error-handler.ts";
-import { responseHandler } from "../../../utils/response-handler.ts";
+import { sendResponse } from "../../../utils/response-handler.ts";
 
 type AuthUser = {
   userId: string;
@@ -12,9 +12,9 @@ type AuthUser = {
 export const createBuilding = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
-      return responseHandler(res, 401, "Unauthorized: user not found");
+      return sendResponse(res, 401, "Unauthorized: user not found");
     }
-    const { tenantId } = req.user;
+    const { tenantId } = req.user as AuthUser;
     const {
       buildingName,
       buildingCode,
@@ -41,7 +41,7 @@ export const createBuilding = async (req: Request, res: Response) => {
       },
     });
 
-    responseHandler(res, 201, "Building created successfully", building);
+    sendResponse(res, 201, "Building created successfully", building);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -69,7 +69,7 @@ export const getAllBuildings = async (req: Request, res: Response) => {
 
     const total = await prisma.building.count({ where });
 
-    responseHandler(res, 200, "Buildings fetched successfully", {
+    sendResponse(res, 200, "Buildings fetched successfully", {
       buildings,
       total,
       page: Math.ceil(parseInt(skip as string) / parseInt(take as string)) + 1,
@@ -85,7 +85,7 @@ export const getBuildingById = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!buildingId) {
-      return responseHandler(res, 400, "Building ID is required");
+      return sendResponse(res, 400, "Building ID is required");
     }
 
     const building = await prisma.building.findFirst({
@@ -104,10 +104,10 @@ export const getBuildingById = async (req: Request, res: Response) => {
     });
 
     if (!building) {
-      return responseHandler(res, 404, "Building not found");
+      return sendResponse(res, 404, "Building not found");
     }
 
-    responseHandler(res, 200, "Building fetched successfully", building);
+    sendResponse(res, 200, "Building fetched successfully", building);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -117,10 +117,10 @@ export const updateBuilding = async (req: Request, res: Response) => {
   try {
     const { buildingId } = req.params;
     if (!req.user) {
-      return responseHandler(res, 401, "Unauthorized: user not found");
+      return sendResponse(res, 401, "Unauthorized: user not found");
     }
     if (!buildingId) {
-      return responseHandler(res, 400, "Building ID is required");
+      return sendResponse(res, 400, "Building ID is required");
     }
     const { tenantId } = req.user as AuthUser;
     const { totalFloors, ...updateData } = req.body; // Exclude totalFloors from manual updates
@@ -134,14 +134,14 @@ export const updateBuilding = async (req: Request, res: Response) => {
     });
 
     if (building.count === 0) {
-      return responseHandler(res, 404, "Building not found");
+      return sendResponse(res, 404, "Building not found");
     }
 
     const updatedBuilding = await prisma.building.findUnique({
       where: { id: buildingId },
     });
 
-    responseHandler(res, 200, "Building updated successfully", updatedBuilding);
+    sendResponse(res, 200, "Building updated successfully", updatedBuilding);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -153,7 +153,7 @@ export const deleteBuilding = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!buildingId) {
-      return responseHandler(res, 400, "Building ID is required");
+      return sendResponse(res, 400, "Building ID is required");
     }
 
     const building = await prisma.building.findFirst({
@@ -164,14 +164,14 @@ export const deleteBuilding = async (req: Request, res: Response) => {
     });
 
     if (!building) {
-      return responseHandler(res, 404, "Building not found");
+      return sendResponse(res, 404, "Building not found");
     }
 
     await prisma.building.delete({
       where: { id: buildingId },
     });
 
-    responseHandler(res, 200, "Building deleted successfully");
+    sendResponse(res, 200, "Building deleted successfully");
   } catch (error) {
     errorHandler(res, error);
   }
@@ -180,13 +180,13 @@ export const deleteBuilding = async (req: Request, res: Response) => {
 export const getBuildingStats = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
-      return responseHandler(res, 401, "Unauthorized: user not found");
+      return sendResponse(res, 401, "Unauthorized: user not found");
     }
-    const { tenantId } = req.user;
+    const { tenantId } = req.user as AuthUser;
     const { buildingId } = req.params;
 
     if (!buildingId) {
-      return responseHandler(res, 400, "Building ID is required");
+      return sendResponse(res, 400, "Building ID is required");
     }
 
     const building = await prisma.building.findFirst({
@@ -200,7 +200,7 @@ export const getBuildingStats = async (req: Request, res: Response) => {
     });
 
     if (!building) {
-      return responseHandler(res, 404, "Building not found");
+      return sendResponse(res, 404, "Building not found");
     }
 
     const stats = {
@@ -214,7 +214,7 @@ export const getBuildingStats = async (req: Request, res: Response) => {
         : "0",
     };
 
-    responseHandler(res, 200, "Building stats fetched successfully", stats);
+    sendResponse(res, 200, "Building stats fetched successfully", stats);
   } catch (error) {
     errorHandler(res, error);
   }

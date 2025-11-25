@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import prisma from "../../../utils/prisma.ts";
 import { errorHandler } from "../../../utils/error-handler.ts";
-import { responseHandler } from "../../../utils/response-handler.ts";
+import { sendResponse } from "../../../utils/response-handler.ts";
 import type { AuthUser } from "../../../types/auth-user.ts";
 
 declare global {
@@ -26,7 +26,7 @@ export const createFloor = async (req: Request, res: Response) => {
     });
 
     if (existingFloor) {
-      return responseHandler(
+      return sendResponse(
         res,
         400,
         "Floor with this number already exists in the building"
@@ -60,7 +60,7 @@ export const createFloor = async (req: Request, res: Response) => {
       return floor;
     });
 
-    responseHandler(res, 201, "Floor created successfully", result);
+    sendResponse(res, 201, "Floor created successfully", result);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -72,7 +72,7 @@ export const getFloorsByBuilding = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!buildingId) {
-      return responseHandler(res, 400, "Building ID is required");
+      return sendResponse(res, 400, "Building ID is required");
     }
 
     const floors = await prisma.floor.findMany({
@@ -86,7 +86,7 @@ export const getFloorsByBuilding = async (req: Request, res: Response) => {
       orderBy: { floorNumber: "asc" },
     });
 
-    responseHandler(res, 200, "Floors fetched successfully", floors);
+      sendResponse(res, 200, "Floors fetched successfully", floors);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -98,7 +98,7 @@ export const getFloorById = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!floorId) {
-      return responseHandler(res, 400, "Floor ID is required");
+      return sendResponse(res, 400, "Floor ID is required");
     }
 
     const floor = await prisma.floor.findFirst({
@@ -126,10 +126,10 @@ export const getFloorById = async (req: Request, res: Response) => {
     });
 
     if (!floor) {
-      return responseHandler(res, 404, "Floor not found");
+      return sendResponse(res, 404, "Floor not found");
     }
 
-    responseHandler(res, 200, "Floor fetched successfully", floor);
+    sendResponse(res, 200, "Floor fetched successfully", floor);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -142,7 +142,7 @@ export const updateFloor = async (req: Request, res: Response) => {
     const updateData = req.body;
 
     if (!floorId) {
-      return responseHandler(res, 400, "Floor ID is required");
+      return sendResponse(res, 400, "Floor ID is required");
     }
 
     const floor = await prisma.floor.updateMany({
@@ -154,14 +154,14 @@ export const updateFloor = async (req: Request, res: Response) => {
     });
 
     if (floor.count === 0) {
-      return responseHandler(res, 404, "Floor not found");
+      return sendResponse(res, 404, "Floor not found");
     }
 
     const updatedFloor = await prisma.floor.findUnique({
       where: { id: floorId },
     });
 
-    responseHandler(res, 200, "Floor updated successfully", updatedFloor);
+    sendResponse(res, 200, "Floor updated successfully", updatedFloor);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -173,7 +173,7 @@ export const deleteFloor = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!floorId) {
-      return responseHandler(res, 400, "Floor ID is required");
+      return sendResponse(res, 400, "Floor ID is required");
     }
 
     const floor = await prisma.floor.findFirst({
@@ -184,7 +184,7 @@ export const deleteFloor = async (req: Request, res: Response) => {
     });
 
     if (!floor) {
-      return responseHandler(res, 404, "Floor not found");
+      return sendResponse(res, 404, "Floor not found");
     }
 
     // Use transaction to delete floor and update building
@@ -206,7 +206,7 @@ export const deleteFloor = async (req: Request, res: Response) => {
       });
     });
 
-    responseHandler(res, 200, "Floor deleted successfully");
+      sendResponse(res, 200, "Floor deleted successfully");
   } catch (error) {
     errorHandler(res, error);
   }
@@ -218,7 +218,7 @@ export const getFloorStats = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!floorId) {
-      return responseHandler(res, 400, "Floor ID is required");
+      return sendResponse(res, 400, "Floor ID is required");
     }
 
     const floor = await prisma.floor.findFirst({
@@ -236,7 +236,7 @@ export const getFloorStats = async (req: Request, res: Response) => {
     });
 
     if (!floor) {
-      return responseHandler(res, 404, "Floor not found");
+      return sendResponse(res, 404, "Floor not found");
     }
 
     const stats = {
@@ -252,7 +252,7 @@ export const getFloorStats = async (req: Request, res: Response) => {
       status: floor.status,
     };
 
-    responseHandler(res, 200, "Floor stats fetched successfully", stats);
+    sendResponse(res, 200, "Floor stats fetched successfully", stats);
   } catch (error) {
     errorHandler(res, error);
   }

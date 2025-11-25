@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import prisma from "../../../utils/prisma.ts";
 import { errorHandler } from "../../../utils/error-handler.ts";
-import { responseHandler } from "../../../utils/response-handler.ts";
+import { sendResponse } from "../../../utils/response-handler.ts";
 import type { AuthUser } from "../../../types/auth-user.ts";
 
 declare global {
@@ -38,7 +38,7 @@ export const createRoom = async (req: Request, res: Response) => {
 
     // Validate required fields
     if (!buildingId || !floorId || !roomNumber || !roomType || !capacity) {
-      return responseHandler(
+      return sendResponse(
         res,
         400,
         "Missing required fields: buildingId, floorId, roomNumber, roomType, capacity"
@@ -58,7 +58,7 @@ export const createRoom = async (req: Request, res: Response) => {
     });
 
     if (!floor) {
-      return responseHandler(
+      return sendResponse(
         res,
         404,
         "Floor not found or does not belong to the specified building"
@@ -74,7 +74,7 @@ export const createRoom = async (req: Request, res: Response) => {
     });
 
     if (existingRoom) {
-      return responseHandler(
+      return sendResponse(
         res,
         400,
         `Room number ${roomNumber} already exists on this floor`
@@ -139,7 +139,7 @@ export const createRoom = async (req: Request, res: Response) => {
       return room;
     });
 
-    responseHandler(res, 201, "Room created successfully", result);
+    sendResponse(res, 201, "Room created successfully", result);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -152,7 +152,7 @@ export const getRoomsByFloor = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!floorId) {
-      return responseHandler(res, 400, "Floor ID is required");
+      return sendResponse(res, 400, "Floor ID is required");
     }
 
     // Verify floor exists
@@ -164,7 +164,7 @@ export const getRoomsByFloor = async (req: Request, res: Response) => {
     });
 
     if (!floor) {
-      return responseHandler(res, 404, "Floor not found");
+      return sendResponse(res, 404, "Floor not found");
     }
 
     const rooms = await prisma.room.findMany({
@@ -196,7 +196,7 @@ export const getRoomsByFloor = async (req: Request, res: Response) => {
       orderBy: { roomNumber: "asc" },
     });
 
-    responseHandler(res, 200, "Rooms fetched successfully", {
+    sendResponse(res, 200, "Rooms fetched successfully", {
       floorId,
       floorName: floor.floorName,
       totalRooms: rooms.length,
@@ -214,7 +214,7 @@ export const getRoomById = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!roomId) {
-      return responseHandler(res, 400, "Room ID is required");
+      return sendResponse(res, 400, "Room ID is required");
     }
 
     const room = await prisma.room.findFirst({
@@ -283,10 +283,10 @@ export const getRoomById = async (req: Request, res: Response) => {
     });
 
     if (!room) {
-      return responseHandler(res, 404, "Room not found");
+      return sendResponse(res, 404, "Room not found");
     }
 
-    responseHandler(res, 200, "Room fetched successfully", room);
+    sendResponse(res, 200, "Room fetched successfully", room);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -343,7 +343,7 @@ export const getAllRooms = async (req: Request, res: Response) => {
 
     const total = await prisma.room.count({ where });
 
-    responseHandler(res, 200, "Rooms fetched successfully", {
+    sendResponse(res, 200, "Rooms fetched successfully", {
       rooms,
       total,
       page: Math.ceil(parseInt(skip as string) / parseInt(take as string)) + 1,
@@ -360,7 +360,7 @@ export const updateRoom = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!roomId) {
-      return responseHandler(res, 400, "Room ID is required");
+      return sendResponse(res, 400, "Room ID is required");
     }
 
     const updateData = req.body;
@@ -374,7 +374,7 @@ export const updateRoom = async (req: Request, res: Response) => {
     });
 
     if (room.count === 0) {
-      return responseHandler(res, 404, "Room not found");
+      return sendResponse(res, 404, "Room not found");
     }
 
     const updatedRoom = await prisma.room.findUnique({
@@ -388,7 +388,7 @@ export const updateRoom = async (req: Request, res: Response) => {
       },
     });
 
-    responseHandler(res, 200, "Room updated successfully", updatedRoom);
+    sendResponse(res, 200, "Room updated successfully", updatedRoom);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -401,7 +401,7 @@ export const deleteRoom = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!roomId) {
-      return responseHandler(res, 400, "Room ID is required");
+      return sendResponse(res, 400, "Room ID is required");
     }
 
     const room = await prisma.room.findFirst({
@@ -412,7 +412,7 @@ export const deleteRoom = async (req: Request, res: Response) => {
     });
 
     if (!room) {
-      return responseHandler(res, 404, "Room not found");
+      return sendResponse(res, 404, "Room not found");
     }
 
     // Use transaction to delete room and update floor/building counts
@@ -443,7 +443,7 @@ export const deleteRoom = async (req: Request, res: Response) => {
       });
     });
 
-    responseHandler(res, 200, "Room deleted successfully");
+    sendResponse(res, 200, "Room deleted successfully");
   } catch (error) {
     errorHandler(res, error);
   }
@@ -464,7 +464,7 @@ export const bulkCreateRooms = async (req: Request, res: Response) => {
     } = req.body;
 
     if (!buildingId || !floorId || !startRoomNumber || !endRoomNumber || !roomType || !capacity) {
-      return responseHandler(
+      return sendResponse(
         res,
         400,
         "Missing required fields"
@@ -481,7 +481,7 @@ export const bulkCreateRooms = async (req: Request, res: Response) => {
     });
 
     if (!floor) {
-      return responseHandler(res, 404, "Floor not found");
+      return sendResponse(res, 404, "Floor not found");
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -544,7 +544,7 @@ export const bulkCreateRooms = async (req: Request, res: Response) => {
       return { createdRooms, errors };
     });
 
-    responseHandler(res, 201, "Rooms created successfully", result);
+    sendResponse(res, 201, "Rooms created successfully", result);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -557,7 +557,7 @@ export const getRoomStats = async (req: Request, res: Response) => {
     const { tenantId } = req.user as AuthUser;
 
     if (!roomId) {
-      return responseHandler(res, 400, "Room ID is required");
+      return sendResponse(res, 400, "Room ID is required");
     }
 
     const room = await prisma.room.findFirst({
@@ -583,7 +583,7 @@ export const getRoomStats = async (req: Request, res: Response) => {
     });
 
     if (!room) {
-      return responseHandler(res, 404, "Room not found");
+      return sendResponse(res, 404, "Room not found");
     }
 
     const stats = {
@@ -601,7 +601,7 @@ export const getRoomStats = async (req: Request, res: Response) => {
       status: room.status,
     };
 
-    responseHandler(res, 200, "Room stats fetched successfully", stats);
+    sendResponse(res, 200, "Room stats fetched successfully", stats);
   } catch (error) {
     errorHandler(res, error);
   }
@@ -718,7 +718,7 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
       byFloor: floorId ? null : Object.values(occupancyByFloor),
     };
 
-    responseHandler(res, 200, "Room occupancy fetched successfully", occupancyStats);
+    sendResponse(res, 200, "Room occupancy fetched successfully", occupancyStats);
   } catch (error) {
     errorHandler(res, error);
   }
