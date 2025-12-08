@@ -45,6 +45,16 @@ export const createRoom = async (req: Request, res: Response) => {
       );
     }
 
+    // Validate capacity is positive
+    if (capacity <= 0) {
+      return sendResponse(res, 400, "Room capacity must be greater than 0");
+    }
+
+    // Validate room number
+    if (!roomNumber || roomNumber.toString().trim() === "") {
+      return sendResponse(res, 400, "Room number cannot be empty");
+    }
+
     // Verify floor exists and belongs to the building and tenant
     const floor = await prisma.floor.findFirst({
       where: {
@@ -69,7 +79,7 @@ export const createRoom = async (req: Request, res: Response) => {
     const existingRoom = await prisma.room.findFirst({
       where: {
         floorId,
-        roomNumber,
+        roomNumber: roomNumber.toString(),
       },
     });
 
@@ -89,12 +99,12 @@ export const createRoom = async (req: Request, res: Response) => {
           tenantId,
           buildingId,
           floorId,
-          roomNumber,
+          roomNumber: roomNumber.toString(),
           roomName: roomName || `Room ${roomNumber}`,
           roomType,
-          capacity,
-          description,
-          imageUrl,
+          capacity: parseInt(capacity),
+          description: description || null,
+          imageUrl: imageUrl || null,
           hasAttachedBathroom: hasAttachedBathroom || false,
           hasBalcony: hasBalcony || false,
           hasACFacility: hasACFacility || false,
@@ -103,8 +113,9 @@ export const createRoom = async (req: Request, res: Response) => {
           hasWifi: hasWifi || false,
           hasTV: hasTV || false,
           hasRefrigerator: hasRefrigerator || false,
-          floorArea: floorArea || null,
+          floorArea: floorArea ? parseFloat(floorArea) : null,
           status: "AVAILABLE",
+          occupied: 0, // Initialize occupied count
         },
         include: {
           amenities: {
@@ -136,11 +147,14 @@ export const createRoom = async (req: Request, res: Response) => {
         data: { totalRooms: totalRoomsInBuilding },
       });
 
+      console.log("✅ Room created successfully:", room.id);
+
       return room;
     });
 
     sendResponse(res, 201, "Room created successfully", result);
   } catch (error) {
+    console.error("❌ Error creating room:", error);
     errorHandler(res, error);
   }
 };
@@ -196,6 +210,8 @@ export const getRoomsByFloor = async (req: Request, res: Response) => {
       orderBy: { roomNumber: "asc" },
     });
 
+    console.log(`✅ Retrieved ${rooms.length} rooms for floor: ${floorId}`);
+
     sendResponse(res, 200, "Rooms fetched successfully", {
       floorId,
       floorName: floor.floorName,
@@ -203,6 +219,7 @@ export const getRoomsByFloor = async (req: Request, res: Response) => {
       rooms,
     });
   } catch (error) {
+    console.error("❌ Error fetching rooms by floor:", error);
     errorHandler(res, error);
   }
 };
@@ -286,8 +303,11 @@ export const getRoomById = async (req: Request, res: Response) => {
       return sendResponse(res, 404, "Room not found");
     }
 
+    console.log(`✅ Retrieved room details: ${roomId}`);
+
     sendResponse(res, 200, "Room fetched successfully", room);
   } catch (error) {
+    console.error("❌ Error fetching room by ID:", error);
     errorHandler(res, error);
   }
 };
@@ -303,6 +323,7 @@ export const getAllRooms = async (req: Request, res: Response) => {
       buildingId,
       roomType,
       status,
+      search,
     } = req.query;
 
     const where: any = { tenantId };
@@ -310,45 +331,61 @@ export const getAllRooms = async (req: Request, res: Response) => {
     if (buildingId) where.buildingId = buildingId;
     if (roomType) where.roomType = roomType;
     if (status) where.status = status;
+    
+    // Add search filter for room number or name
+    if (search) {
+      where.OR = [
+        { roomNumber: { contains: search as string, mode: "insensitive" } },
+        { roomName: { contains: search as string, mode: "insensitive" } },
+      ];
+    }
 
-    const rooms = await prisma.room.findMany({
-      where,
-      skip: parseInt(skip as string),
-      take: parseInt(take as string),
-      include: {
-        floor: {
-          select: {
-            floorNumber: true,
-            floorName: true,
-          },
-        },
-        building: {
-          select: {
-            buildingName: true,
-          },
-        },
-        amenities: {
-          include: {
-            amenity: true,
-          },
-        },
-        roomAllocations: {
-          where: {
-            status: "ACTIVE",
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const skipNum = parseInt(skip as string) || 0;
+    const takeNum = parseInt(take as string) || 10;
 
-    const total = await prisma.room.count({ where });
+    const [rooms, total] = await Promise.all([
+      prisma.room.findMany({
+        where,
+        skip: skipNum,
+        take: takeNum,
+        include: {
+          floor: {
+            select: {
+              floorNumber: true,
+              floorName: true,
+            },
+          },
+          building: {
+            select: {
+              buildingName: true,
+            },
+          },
+          amenities: {
+            include: {
+              amenity: true,
+            },
+          },
+          roomAllocations: {
+            where: {
+              status: "ACTIVE",
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.room.count({ where }),
+    ]);
+
+    console.log(`✅ Retrieved ${rooms.length} rooms from total ${total}`);
 
     sendResponse(res, 200, "Rooms fetched successfully", {
       rooms,
       total,
-      page: Math.ceil(parseInt(skip as string) / parseInt(take as string)) + 1,
+      page: Math.floor(skipNum / takeNum) + 1,
+      totalPages: Math.ceil(total / takeNum),
     });
   } catch (error) {
+    console.error("❌ Error fetching all rooms:", error);
     errorHandler(res, error);
   }
 };
@@ -363,33 +400,63 @@ export const updateRoom = async (req: Request, res: Response) => {
       return sendResponse(res, 400, "Room ID is required");
     }
 
-    const updateData = req.body;
-
-    const room = await prisma.room.updateMany({
+    // Verify room exists and belongs to tenant
+    const existingRoom = await prisma.room.findFirst({
       where: {
         id: roomId,
         tenantId,
       },
-      data: updateData,
     });
 
-    if (room.count === 0) {
+    if (!existingRoom) {
       return sendResponse(res, 404, "Room not found");
     }
 
-    const updatedRoom = await prisma.room.findUnique({
-      where: { id: roomId },
+    const updateData = req.body;
+
+    // Validate capacity if being updated
+    if (updateData.capacity && updateData.capacity <= 0) {
+      return sendResponse(res, 400, "Room capacity must be greater than 0");
+    }
+
+    // If capacity is being decreased, check if it's less than current occupancy
+    if (updateData.capacity && updateData.capacity < existingRoom.occupied) {
+      return sendResponse(
+        res,
+        400,
+        `Cannot reduce capacity to ${updateData.capacity}. Current occupancy is ${existingRoom.occupied}`
+      );
+    }
+
+    // Convert capacity to integer if provided
+    if (updateData.capacity) {
+      updateData.capacity = parseInt(updateData.capacity);
+    }
+
+    const updatedRoom = await prisma.room.update({
+      where: {
+        id: roomId,
+      },
+      data: updateData,
       include: {
         amenities: {
           include: {
             amenity: true,
           },
         },
+        roomAllocations: {
+          where: {
+            status: "ACTIVE",
+          },
+        },
       },
     });
 
+    console.log(`✅ Room updated successfully: ${roomId}`);
+
     sendResponse(res, 200, "Room updated successfully", updatedRoom);
   } catch (error) {
+    console.error("❌ Error updating room:", error);
     errorHandler(res, error);
   }
 };
@@ -413,6 +480,22 @@ export const deleteRoom = async (req: Request, res: Response) => {
 
     if (!room) {
       return sendResponse(res, 404, "Room not found");
+    }
+
+    // Check if room has active allocations
+    const activeAllocations = await prisma.roomAllocation.count({
+      where: {
+        roomId,
+        status: "ACTIVE",
+      },
+    });
+
+    if (activeAllocations > 0) {
+      return sendResponse(
+        res,
+        400,
+        `Cannot delete room. ${activeAllocations} student(s) are currently allocated to this room`
+      );
     }
 
     // Use transaction to delete room and update floor/building counts
@@ -441,10 +524,13 @@ export const deleteRoom = async (req: Request, res: Response) => {
         where: { id: room.buildingId },
         data: { totalRooms: totalRoomsInBuilding },
       });
+
+      console.log(`✅ Room deleted successfully: ${roomId}`);
     });
 
     sendResponse(res, 200, "Room deleted successfully");
   } catch (error) {
+    console.error("❌ Error deleting room:", error);
     errorHandler(res, error);
   }
 };
@@ -467,8 +553,21 @@ export const bulkCreateRooms = async (req: Request, res: Response) => {
       return sendResponse(
         res,
         400,
-        "Missing required fields"
+        "Missing required fields: buildingId, floorId, startRoomNumber, endRoomNumber, roomType, capacity"
       );
+    }
+
+    // Validate capacity
+    if (capacity <= 0) {
+      return sendResponse(res, 400, "Room capacity must be greater than 0");
+    }
+
+    // Validate room numbers
+    const start = parseInt(startRoomNumber);
+    const end = parseInt(endRoomNumber);
+
+    if (isNaN(start) || isNaN(end) || start > end) {
+      return sendResponse(res, 400, "Invalid room number range");
     }
 
     // Verify floor exists
@@ -488,7 +587,7 @@ export const bulkCreateRooms = async (req: Request, res: Response) => {
       const createdRooms = [];
       const errors = [];
 
-      for (let i = parseInt(startRoomNumber); i <= parseInt(endRoomNumber); i++) {
+      for (let i = start; i <= end; i++) {
         const roomNumber = i.toString();
 
         // Check if room already exists
@@ -512,9 +611,10 @@ export const bulkCreateRooms = async (req: Request, res: Response) => {
             roomNumber,
             roomName: `Room ${roomNumber}`,
             roomType,
-            capacity,
-            description,
+            capacity: parseInt(capacity.toString()),
+            description: description || null,
             status: "AVAILABLE",
+            occupied: 0,
           },
         });
 
@@ -541,11 +641,14 @@ export const bulkCreateRooms = async (req: Request, res: Response) => {
         data: { totalRooms: totalRoomsInBuilding },
       });
 
-      return { createdRooms, errors };
+      console.log(`✅ Bulk created ${createdRooms.length} rooms. Errors: ${errors.length}`);
+
+      return { createdRooms, errors, createdCount: createdRooms.length, errorCount: errors.length };
     });
 
     sendResponse(res, 201, "Rooms created successfully", result);
   } catch (error) {
+    console.error("❌ Error bulk creating rooms:", error);
     errorHandler(res, error);
   }
 };
@@ -586,6 +689,10 @@ export const getRoomStats = async (req: Request, res: Response) => {
       return sendResponse(res, 404, "Room not found");
     }
 
+    const occupancyRate = room.capacity > 0 
+      ? ((room.occupied / room.capacity) * 100).toFixed(2)
+      : "0";
+
     const stats = {
       roomNumber: room.roomNumber,
       roomName: room.roomName,
@@ -593,16 +700,20 @@ export const getRoomStats = async (req: Request, res: Response) => {
       capacity: room.capacity,
       occupied: room.occupied,
       available: room.capacity - room.occupied,
-      occupancyRate: room.capacity > 0 
-        ? ((room.occupied / room.capacity) * 100).toFixed(2)
-        : "0",
+      occupancyRate: parseFloat(occupancyRate),
+      occupancyPercentage: `${occupancyRate}%`,
       totalAmenities: room.amenities.length,
       activeComplaints: room.complaints.length,
       status: room.status,
+      isFull: room.occupied >= room.capacity,
+      hasAvailability: room.occupied < room.capacity,
     };
+
+    console.log(`✅ Room stats retrieved for room: ${roomId}`);
 
     sendResponse(res, 200, "Room stats fetched successfully", stats);
   } catch (error) {
+    console.error("❌ Error fetching room stats:", error);
     errorHandler(res, error);
   }
 };
@@ -629,12 +740,14 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
         },
         floor: {
           select: {
+            id: true,
             floorNumber: true,
             floorName: true,
           },
         },
         building: {
           select: {
+            id: true,
             buildingName: true,
           },
         },
@@ -645,6 +758,9 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
     const totalCapacity = rooms.reduce((sum, room) => sum + room.capacity, 0);
     const totalOccupied = rooms.reduce((sum, room) => sum + room.occupied, 0);
     const totalAvailable = totalCapacity - totalOccupied;
+    const occupancyRate = totalCapacity > 0 
+      ? ((totalOccupied / totalCapacity) * 100).toFixed(2)
+      : "0";
 
     // Group by room type
     type RoomType = typeof rooms[number]['roomType'];
@@ -654,7 +770,9 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
       capacity: number;
       occupied: number;
       available: number;
+      occupancyRate: string;
     }> = {};
+    
     rooms.forEach((room) => {
       if (!occupancyByType[room.roomType]) {
         occupancyByType[room.roomType] = {
@@ -663,12 +781,21 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
           capacity: 0,
           occupied: 0,
           available: 0,
+          occupancyRate: "0",
         };
       }
       occupancyByType[room.roomType]!.totalRooms += 1;
       occupancyByType[room.roomType]!.capacity += room.capacity;
       occupancyByType[room.roomType]!.occupied += room.occupied;
       occupancyByType[room.roomType]!.available += room.capacity - room.occupied;
+    });
+
+    // Calculate occupancy rate for each type
+    Object.keys(occupancyByType).forEach((type) => {
+      const typeData = occupancyByType[type]!;
+      typeData.occupancyRate = typeData.capacity > 0
+        ? ((typeData.occupied / typeData.capacity) * 100).toFixed(2)
+        : "0";
     });
 
     // Group by floor (if not filtered by floor)
@@ -681,8 +808,10 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
         capacity: number;
         occupied: number;
         available: number;
+        occupancyRate: string;
       };
     } = {};
+    
     if (!floorId) {
       rooms.forEach((room) => {
         const key = room.floorId;
@@ -695,12 +824,23 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
             capacity: 0,
             occupied: 0,
             available: 0,
+            occupancyRate: "0",
           };
         }
         occupancyByFloor[key].totalRooms += 1;
         occupancyByFloor[key].capacity += room.capacity;
         occupancyByFloor[key].occupied += room.occupied;
         occupancyByFloor[key].available += room.capacity - room.occupied;
+      });
+
+      // Calculate occupancy rate for each floor
+      Object.keys(occupancyByFloor).forEach((floorKey) => {
+        const floorData = occupancyByFloor[floorKey];
+        if (floorData) {
+          floorData.occupancyRate = floorData.capacity > 0
+            ? ((floorData.occupied / floorData.capacity) * 100).toFixed(2)
+            : "0";
+        }
       });
     }
 
@@ -710,16 +850,21 @@ export const getRoomOccupancy = async (req: Request, res: Response) => {
         totalCapacity,
         totalOccupied,
         totalAvailable,
-        occupancyRate: totalCapacity > 0 
-          ? ((totalOccupied / totalCapacity) * 100).toFixed(2)
-          : "0",
+        occupancyRate: parseFloat(occupancyRate),
+        occupancyPercentage: `${occupancyRate}%`,
+        fullRooms: rooms.filter((r) => r.occupied >= r.capacity).length,
+        availableRooms: rooms.filter((r) => r.occupied < r.capacity).length,
+        emptyRooms: rooms.filter((r) => r.occupied === 0).length,
       },
       byType: Object.values(occupancyByType),
       byFloor: floorId ? null : Object.values(occupancyByFloor),
     };
 
+    console.log(`✅ Room occupancy stats retrieved`);
+
     sendResponse(res, 200, "Room occupancy fetched successfully", occupancyStats);
   } catch (error) {
+    console.error("❌ Error fetching room occupancy:", error);
     errorHandler(res, error);
   }
 };

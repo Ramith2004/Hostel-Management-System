@@ -10,11 +10,16 @@ import hostelRoutes from './routes/Admin/Hostel/mainhostel.route.ts';
 import studentComplaintRoutes from './routes/Student/complaint.route.ts';
 import profileRoutes from './routes/profile.route.ts';
 import adminComplaintResolutionRoutes from "./routes/Admin/Hostel/complaintResolution.route.ts";
+import paymentRoutes from './routes/Admin/Hostel/payment.route.ts';
+import studentPaymentRoutes from './routes/Student/studentpayment.route.ts';
+import adminPaymentRoutes from './routes/Admin/adminpaymentdashboard.route.ts';
+import adminPaymentSettingsRoutes from './routes/Admin/Hostel/adminpaymentsetting.route.ts'; // ✅ Fee settings
+import eventRoutes from "./routes/Admin/event.route.ts";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration - Enhanced
+// ✅ FIXED: CORS Configuration - Enhanced with x-tenant-id header
 const corsOptions = {
   origin: [
     'http://localhost:5173',
@@ -22,15 +27,12 @@ const corsOptions = {
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
   optionsSuccessStatus: 200,
 };
 
 // Middleware
-// CORS must be applied before routes
 app.use(cors(corsOptions));
-
-// Parse JSON bodies
 app.use(express.json());
 
 // Logging middleware
@@ -49,9 +51,23 @@ app.use('/api/admin/student', studentsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin/hostel', hostelRoutes);
 
+// Event Routes
+app.use('/api/admin/events', eventRoutes);
+
 // Complaint Routes
 app.use("/api/complaints/student", studentComplaintRoutes);
 app.use("/api/complaints/admin", adminComplaintResolutionRoutes);
+
+// Payment Routes
+app.use('/api/admin/hostel/payments', paymentRoutes);
+app.use('/api/student/payments', studentPaymentRoutes);
+
+// ✅ FIXED: Register fee settings FIRST, then payment dashboard
+// Fee Settings routes (specific routes)
+app.use('/api/admin/payments/fee-settings', adminPaymentSettingsRoutes);
+
+// Payment Dashboard routes (more general routes)
+app.use('/api/admin/payments', adminPaymentRoutes);
 
 // Health check
 app.get('/', (req, res) => {
@@ -82,4 +98,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📡 API URL: http://localhost:${PORT}`);
   console.log(`🌍 CORS enabled for:`, corsOptions.origin);
+  console.log(`📋 Allowed headers:`, corsOptions.allowedHeaders);
 });

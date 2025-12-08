@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Building2, Loader, CreditCard, CheckCircle2 } from 'lucide-react';
 import api from '../../../lib/api';
+import { API_ROUTES } from '../../../lib/api';
 
 interface HostelModalProps {
   isOpen: boolean;
@@ -10,6 +11,12 @@ interface HostelModalProps {
 }
 
 type ModalStep = 'form' | 'payment' | 'success';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalProps) {
   const [currentStep, setCurrentStep] = useState<ModalStep>('form');
@@ -25,102 +32,222 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [paymentData, setPaymentData] = useState({
-    cardNumber: '',
-    cardName: '',
-    expiryDate: '',
-    cvv: '',
-  });
   const [paymentError, setPaymentError] = useState('');
+  const [paymentData, setPaymentData] = useState<any>(null);
 
   const HOSTEL_SETUP_AMOUNT = 5000;
+
+  // ✅ Extract user data from localStorage
+  const getUserData = () => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        return JSON.parse(userData);
+      } catch (e) {
+        console.error('Error parsing user data:', e);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // ✅ Extract tenantId from localStorage
+  const getTenantId = () => {
+    const userData = getUserData();
+    return userData?.tenantId || '';
+  };
+
+  // ✅ Extract studentId from localStorage (only for STUDENT role)
+  const getStudentId = () => {
+    const userData = getUserData();
+    const userRole = userData?.role;
+    
+    if (userRole === 'ADMIN' || userRole === 'WARDEN') {
+      return null;
+    }
+    return userData?.id || null;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value,
-      // Auto-generate buildingCode from buildingName
       ...(name === 'buildingName' && { buildingCode: value.toUpperCase().replace(/\s+/g, '-') }),
-    }));
-  };
-
-  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPaymentData(prev => ({
-      ...prev,
-      [name]: value,
     }));
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form data
     if (!formData.buildingName || !formData.buildingCode || !formData.address || !formData.contactPhone) {
       setError('Please fill in all required fields');
       return;
     }
 
-    // Move to payment step
     setError('');
     setCurrentStep('payment');
   };
 
-  const validatePaymentData = () => {
-    if (!paymentData.cardNumber || !paymentData.cardName || !paymentData.expiryDate || !paymentData.cvv) {
-      setPaymentError('Please fill in all payment details');
-      return false;
+  // ✅ FIXED: Initiate Razorpay Payment with building data
+ const initiateRazorpayPayment = async () => {
+  setPaymentError('');
+  setIsLoading(true);
+
+  try {
+    const tenantId = getTenantId();
+    const studentId = getStudentId();
+
+    if (!tenantId) {
+      throw new Error('Tenant ID not found. Please log in again.');
     }
 
-    // Basic card number validation (16 digits)
-    if (paymentData.cardNumber.replace(/\s/g, '').length !== 16) {
-      setPaymentError('Card number must be 16 digits');
-      return false;
+    const paymentPayload = {
+      buildingName: formData.buildingName,
+      buildingCode: formData.buildingCode,
+      studentId: studentId || 'admin-setup',
+      amount: HOSTEL_SETUP_AMOUNT,
+      monthYear: new Date().toISOString().slice(0, 7),
+      remarks: `Hostel setup fee for building: ${formData.buildingName}`,
+    };
+
+    console.log('Payment payload:', paymentPayload);
+
+    const response = await api.post(
+      `/api/admin/hostel/payments/razorpay/initiate`,
+      paymentPayload,
+      {
+        headers: {
+          'x-tenant-id': tenantId,
+        },
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to initiate payment');
     }
 
-    // Expiry date validation (MM/YY format)
-    if (!/^\d{2}\/\d{2}$/.test(paymentData.expiryDate)) {
-      setPaymentError('Expiry date must be in MM/YY format');
-      return false;
+    const { orderId, paymentId } = response.data.data;
+
+    // ✅ FIXED: Better method configuration
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY,
+      order_id: orderId,
+      amount: HOSTEL_SETUP_AMOUNT * 100,
+      currency: 'INR',
+      name: 'Hostel Management',
+      description: `Hostel Setup Fee for ${formData.buildingName}`,
+      
+      // ✅ FIXED: Only enable methods that are commonly available
+      method: {
+        netbanking: true,
+        card: true,
+        wallet: true,
+        upi: true,
+        // Remove other methods that might not be available
+      },
+
+      handler: async (razorpayResponse: any) => {
+        console.log('✅ Payment successful:', razorpayResponse);
+        await verifyPayment(razorpayResponse, paymentId, tenantId);
+      },
+
+      prefill: {
+        name: formData.contactPerson || '',
+        contact: formData.contactPhone,
+      },
+
+      notes: {
+        buildingName: formData.buildingName,
+        buildingCode: formData.buildingCode,
+      },
+
+      theme: {
+        color: '#3b82f6',
+      },
+
+      modal: {
+        ondismiss: function () {
+          setPaymentError('Payment window closed. Please try again.');
+          setIsLoading(false);
+        },
+      },
+    };
+
+    if (!window.Razorpay) {
+      throw new Error('Razorpay script not loaded. Please refresh the page.');
     }
 
-    // CVV validation (3-4 digits)
-    if (!/^\d{3,4}$/.test(paymentData.cvv)) {
-      setPaymentError('CVV must be 3-4 digits');
-      return false;
-    }
+    const rzp = new window.Razorpay(options);
+    
+    rzp.on('payment.failed', function (response: any) {
+      console.error('❌ Payment Failed:', response.error);
+      setPaymentError(
+        `Payment failed: ${response.error.description || 'Unknown error'}`
+      );
+      setIsLoading(false);
+    });
 
-    return true;
-  };
+    rzp.open();
+  } catch (err: any) {
+    const errorMessage = err.response?.data?.message || err.message || 'Failed to initiate payment';
+    setPaymentError(errorMessage);
+    console.error('❌ Error initiating Razorpay:', err);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPaymentError('');
-
-    if (!validatePaymentData()) {
-      return;
-    }
-
+  // ✅ Verify Razorpay Payment
+  const verifyPayment = async (razorpayResponse: any, paymentId: string, tenantId: string) => {
     setIsLoading(true);
 
     try {
-      // Process payment (mock payment - in production, use Razorpay/Stripe)
-      // Simulating payment processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const verifyResponse = await api.post(
+        `/api/admin/hostel/payments/razorpay/verify`,
+        {
+          razorpayOrderId: razorpayResponse.razorpay_order_id,
+          razorpayPaymentId: razorpayResponse.razorpay_payment_id,
+          razorpaySignature: razorpayResponse.razorpay_signature,
+        },
+        {
+          headers: {
+            'x-tenant-id': tenantId,
+          },
+        }
+      );
 
-      // After successful payment, create the building
+      if (!verifyResponse.data.success) {
+        throw new Error('Payment verification failed');
+      }
+
+      await createBuilding(tenantId);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Payment verification failed';
+      setPaymentError(errorMessage);
+      console.error('Error verifying payment:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ Create Building after successful payment
+  const createBuilding = async (tenantId: string) => {
+    try {
       const submitData = {
         ...formData,
         constructedYear: formData.constructedYear ? parseInt(formData.constructedYear) : null,
       };
 
-      const response = await api.post('/api/admin/hostel/buildings', submitData);
+      const response = await api.post('/api/admin/hostel/buildings', submitData, {
+        headers: {
+          'x-tenant-id': tenantId,
+        },
+      });
       
       if (response.data.success || response.status === 201) {
         setCurrentStep('success');
         
-        // Auto close after 3 seconds and call success
         setTimeout(() => {
           onSuccess(response.data.data);
           resetModal();
@@ -128,11 +255,9 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
         }, 3000);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to process payment and create building';
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to create building';
       setPaymentError(errorMessage);
-      console.error('Error:', err);
-    } finally {
-      setIsLoading(false);
+      console.error('Error creating building:', err);
     }
   };
 
@@ -148,14 +273,9 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
       imageUrl: '',
       constructedYear: '',
     });
-    setPaymentData({
-      cardNumber: '',
-      cardName: '',
-      expiryDate: '',
-      cvv: '',
-    });
     setError('');
     setPaymentError('');
+    setPaymentData(null);
   };
 
   const handleClose = () => {
@@ -169,7 +289,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -178,7 +297,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
             className="absolute inset-0 bg-black/50"
           />
 
-          {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -231,7 +349,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     </motion.div>
                   )}
 
-                  {/* Basic Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Basic Information</h3>
                     
@@ -283,7 +400,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     </div>
                   </div>
 
-                  {/* Address Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Address</h3>
                     
@@ -303,7 +419,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     </div>
                   </div>
 
-                  {/* Contact Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Contact Information</h3>
                     
@@ -339,7 +454,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     </div>
                   </div>
 
-                  {/* Additional Information */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">Additional Information</h3>
                     
@@ -376,7 +490,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="flex justify-end gap-4 pt-6 border-t border-border">
                     <motion.button
                       whileHover={{ scale: 1.02 }}
@@ -401,8 +514,7 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
 
               {/* Step 2: Payment */}
               {currentStep === 'payment' && (
-                <motion.form
-                  onSubmit={handlePaymentSubmit}
+                <motion.div
                   className="space-y-6"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -418,7 +530,6 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     </motion.div>
                   )}
 
-                  {/* Payment Summary */}
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -436,84 +547,37 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     </div>
                   </motion.div>
 
-                  {/* Card Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground">Card Details</h3>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Card Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="cardNumber"
-                        value={paymentData.cardNumber}
-                        onChange={handlePaymentChange}
-                        required
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Cardholder Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="cardName"
-                        value={paymentData.cardName}
-                        onChange={handlePaymentChange}
-                        required
-                        placeholder="Name on card"
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Expiry Date <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="expiryDate"
-                          value={paymentData.expiryDate}
-                          onChange={handlePaymentChange}
-                          required
-                          placeholder="MM/YY"
-                          maxLength={5}
-                          className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          CVV <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="password"
-                          name="cvv"
-                          value={paymentData.cvv}
-                          onChange={handlePaymentChange}
-                          required
-                          placeholder="123"
-                          maxLength={4}
-                          className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Security Note */}
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-xs text-yellow-800">
-                      🔒 Your payment information is secure and encrypted. This is a demo payment gateway.
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="p-4 bg-green-50 border border-green-200 rounded-lg"
+                  >
+                    <p className="text-sm text-green-700">
+                      🔒 Secure payment powered by Razorpay. You will be redirected to the payment gateway.
                     </p>
-                  </div>
+                  </motion.div>
 
-                  {/* Action Buttons */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-2"
+                  >
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Building Name:</span>
+                      <span className="font-medium text-gray-900">{formData.buildingName}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Building Code:</span>
+                      <span className="font-medium text-gray-900">{formData.buildingCode}</span>
+                    </div>
+                    <div className="flex justify-between text-sm border-t border-gray-200 pt-2 mt-2">
+                      <span className="text-gray-600 font-medium">Amount:</span>
+                      <span className="font-bold text-gray-900">₹{HOSTEL_SETUP_AMOUNT.toLocaleString('en-IN')}</span>
+                    </div>
+                  </motion.div>
+
                   <div className="flex justify-end gap-4 pt-6 border-t border-border">
                     <motion.button
                       whileHover={{ scale: 1.02 }}
@@ -528,7 +592,8 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      type="submit"
+                      type="button"
+                      onClick={initiateRazorpayPayment}
                       disabled={isLoading}
                       className="px-6 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
                     >
@@ -536,7 +601,7 @@ export default function HostelModal({ isOpen, onClose, onSuccess }: HostelModalP
                       {isLoading ? 'Processing...' : `Pay ₹${HOSTEL_SETUP_AMOUNT.toLocaleString('en-IN')}`}
                     </motion.button>
                   </div>
-                </motion.form>
+                </motion.div>
               )}
 
               {/* Step 3: Success */}

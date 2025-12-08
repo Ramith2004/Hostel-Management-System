@@ -1,6 +1,18 @@
 import { RoomType, RoomStatus } from "@prisma/client";
 
 export interface CreateRoomDTO {
+  floorArea: number | string | null;
+  hasRefrigerator: boolean;
+  hasTV: boolean;
+  hasWifi: boolean;
+  hasFurniture: boolean;
+  hasHotWater: boolean;
+  hasBalcony: boolean;
+  hasACFacility: boolean;
+  hasAttachedBathroom: boolean;
+  imageUrl: null;
+  description: null;
+  roomName: string;
   roomNumber: string;
   floor: number;
   capacity: number;
@@ -8,6 +20,18 @@ export interface CreateRoomDTO {
 }
 
 export interface UpdateRoomDTO {
+  floorArea: undefined;
+  hasRefrigerator: undefined;
+  hasTV: undefined;
+  hasWifi: undefined;
+  hasFurniture: undefined;
+  hasACFacility: undefined;
+  hasHotWater: undefined;
+  hasBalcony: undefined;
+  hasAttachedBathroom: undefined;
+  imageUrl: undefined;
+  description: undefined;
+  roomName: undefined;
   roomNumber?: string;
   floor?: number;
   capacity?: number;
@@ -44,6 +68,8 @@ export interface RoomListResponse {
 }
 
 export interface BulkRoomCreateDTO {
+  description: null;
+  floorId: any;
   floorNumber: number;
   startRoomNumber: number;
   endRoomNumber: number;

@@ -23,14 +23,21 @@ type Building = {
   updatedAt: string;
 };
 
-// Define the Room type
+// Define the Room type - Updated to match API response
 type Room = {
   id: string;
   roomName: string;
   roomNumber: string;
   capacity: number;
+  occupied?: number; // Add this field from API
   roomType: "SINGLE" | "DOUBLE" | "TRIPLE" | "QUAD" | "DORMITORY";
-  allocations?: Array<{
+  status?: string;
+  roomAllocations?: Array<{ // Changed from allocations to roomAllocations
+    id: string;
+    studentId: string;
+    status: string;
+  }>;
+  allocations?: Array<{ // Keep this as fallback for compatibility
     id: string;
     studentId: string;
     status: string;
@@ -229,16 +236,51 @@ export default function Hostel() {
     }
   };
 
+  // New function to fetch rooms for a specific floor with complete data
+  const fetchFloorRooms = async (floorId: string): Promise<Room[]> => {
+    try {
+      const response = await api.get(`${API_ROUTES.HOSTEL_ROOMS}?floorId=${floorId}`);
+      if (response.data.success) {
+        return response.data.data?.rooms || [];
+      }
+      return [];
+    } catch (err: any) {
+      console.error('Error fetching floor rooms:', err);
+      return [];
+    }
+  };
+
   const fetchBuildingDetails = async (buildingId: string) => {
     try {
       const response = await api.get(`${API_ROUTES.HOSTEL_BUILDINGS}/${buildingId}`);
 
       if (response.data.success) {
         const building = response.data.data;
+        
+        // Fetch rooms for each floor to ensure accurate data
+        const floorsWithRooms = await Promise.all(
+          (building.floors || []).map(async (floor: Floor) => {
+            try {
+              const roomsResponse = await api.get(`${API_ROUTES.HOSTEL_ROOMS}?floorId=${floor.id}`);
+              const roomsData = roomsResponse.data.data?.rooms || [];
+              return {
+                ...floor,
+                rooms: Array.isArray(roomsData) ? roomsData : [],
+              };
+            } catch (err) {
+              console.error(`Error fetching rooms for floor ${floor.id}:`, err);
+              return {
+                ...floor,
+                rooms: [],
+              };
+            }
+          })
+        );
+
         setHostelData({
           totalFloors: building.totalFloors || 0,
-          totalRooms: building.floors?.reduce((sum: number, floor: any) => sum + (floor.rooms?.length || 0), 0) || 0,
-          floors: building.floors || [],
+          totalRooms: floorsWithRooms.reduce((sum: number, floor: Floor) => sum + (floor.rooms?.length || 0), 0),
+          floors: floorsWithRooms,
         });
       }
     } catch (err: any) {
@@ -262,7 +304,7 @@ export default function Hostel() {
   };
 
   const handleFloorAdded = () => {
-    // Refresh building details to show the new floor/room
+    // Refresh building details to show the new floor/room with accurate stats
     if (selectedBuildingId) {
       fetchBuildingDetails(selectedBuildingId);
     }
@@ -379,13 +421,27 @@ export default function Hostel() {
     });
   };
 
-  // Calculate floor statistics
+  // Calculate floor statistics - Updated with API response structure
   const calculateFloorStats = (floor: Floor) => {
     const totalRooms = floor.rooms?.length || 0;
-    const totalStudents = floor.rooms?.reduce((sum, room) => {
-      return sum + (room.allocations?.filter(a => a.status === 'ACTIVE' || a.status === 'ALLOCATED')?.length || 0);
-    }, 0) || 0;
+    
+    // Calculate based on room capacity and occupied status
     const totalCapacity = floor.rooms?.reduce((sum, room) => sum + (room.capacity || 0), 0) || 0;
+    
+    // Use roomAllocations from API response (or allocations as fallback, then occupied field)
+    const totalStudents = floor.rooms?.reduce((sum, room) => {
+      // First try roomAllocations (from API)
+      if (room.roomAllocations && Array.isArray(room.roomAllocations)) {
+        return sum + room.roomAllocations.filter(a => a.status === 'ACTIVE' || a.status === 'ALLOCATED').length;
+      }
+      // Fallback to allocations if roomAllocations doesn't exist
+      if (room.allocations && Array.isArray(room.allocations)) {
+        return sum + room.allocations.filter(a => a.status === 'ACTIVE' || a.status === 'ALLOCATED').length;
+      }
+      // Final fallback to occupied field from API
+      return sum + (room.occupied || 0);
+    }, 0) || 0;
+    
     const occupancyRate = totalCapacity > 0 ? Math.round((totalStudents / totalCapacity) * 100) : 0;
     const availableSeats = totalCapacity - totalStudents;
 
@@ -397,7 +453,7 @@ export default function Hostel() {
       availableSeats,
     };
   };
-
+  
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -898,8 +954,11 @@ export default function Hostel() {
 
                       {floor.rooms.length > 0 ? (
                         floor.rooms.map((room: Room) => {
-                          const occupiedSeats = room.allocations?.filter(a => a.status === 'ACTIVE' || a.status === 'ALLOCATED')?.length || 0;
+                          // Use roomAllocations from API response
+                          const allocationsArray = room.roomAllocations || room.allocations || [];
+                          const occupiedSeats = allocationsArray.filter(a => a.status === 'ACTIVE' || a.status === 'ALLOCATED')?.length || room.occupied || 0;
                           const roomOccupancyRate = room.capacity > 0 ? Math.round((occupiedSeats / room.capacity) * 100) : 0;
+                          
                           return (
                             <motion.div
                               key={room.id}

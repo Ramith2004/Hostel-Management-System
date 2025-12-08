@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type SetStateAction } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronLeft, Loader, AlertCircle } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Loader, AlertCircle, Lock } from 'lucide-react';
 import { fetchFloors } from '../../lib/hostel.api';
 import { fetchAvailableRooms } from '../../lib/hostel.api';
 import StudentDetailsForm from './StudentDetailsForm';
@@ -29,6 +29,7 @@ interface Room {
   hasBalcony: boolean;
   hasACFacility: boolean;
   hasWifi: boolean;
+  status: string;
 }
 
 interface RoomAssignmentModalProps {
@@ -44,7 +45,7 @@ export default function RoomAssignmentModal({
   onSuccess,
   setIsLoading,
 }: RoomAssignmentModalProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Floor, 2: Room, 3: Student Details
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedFloor, setSelectedFloor] = useState<Floor | null>(null);
@@ -52,7 +53,6 @@ export default function RoomAssignmentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load floors on modal open
   useEffect(() => {
     loadFloors();
   }, []);
@@ -70,24 +70,45 @@ export default function RoomAssignmentModal({
     }
   };
 
+  
+
   const handleFloorSelect = async (floor: Floor) => {
     setSelectedFloor(floor);
     try {
       setLoading(true);
       setError(null);
       const data = await fetchAvailableRooms(floor.id);
-      setRooms(data);
+      
+      // ✅ FILTER OUT FULL ROOMS
+      const availableRooms = data.filter((room: Room) => {
+        // Show only rooms that have capacity available
+        return room.occupied < room.capacity && room.status !== 'FULL' && room.status !== 'MAINTENANCE';
+      });
+
+      if (availableRooms.length === 0) {
+        setError('No available rooms on this floor. All rooms are full or under maintenance.');
+        setRooms([]);
+        setLoading(false);
+        return;
+      }
+
+      setRooms(availableRooms);
       setStep(2);
     } catch (err: any) {
       setError(err.message || 'Failed to load rooms');
-      setLoading(false);
     } finally {
       setLoading(false);
     }
   };
 
   const handleRoomSelect = (room: Room) => {
+    // ✅ FINAL CHECK: Ensure room still has capacity
+    if (room.occupied >= room.capacity) {
+      setError(`Room ${room.roomNumber} is now full. Please select another room.`);
+      return;
+    }
     setSelectedRoom(room);
+    setError(null);
     setStep(3);
   };
 
@@ -98,10 +119,26 @@ export default function RoomAssignmentModal({
       setStep(1);
       setSelectedFloor(null);
       setRooms([]);
+      setError(null);
     } else if (step === 3) {
       setStep(2);
       setSelectedRoom(null);
+      setError(null);
     }
+  };
+
+  // ✅ Helper function to check if room is available
+  const isRoomAvailable = (room: Room) => {
+    return room.occupied < room.capacity && room.status !== 'FULL' && room.status !== 'MAINTENANCE';
+  };
+
+  // ✅ Helper function to get capacity color
+  const getCapacityColor = (occupied: number, capacity: number) => {
+    const percentage = (occupied / capacity) * 100;
+    if (percentage >= 100) return 'from-red-500 to-red-600';
+    if (percentage >= 75) return 'from-orange-500 to-orange-600';
+    if (percentage >= 50) return 'from-yellow-500 to-yellow-600';
+    return 'from-green-500 to-blue-500';
   };
 
   const modalVariants = {
@@ -226,14 +263,19 @@ export default function RoomAssignmentModal({
                   Floor: <span className="font-semibold">{selectedFloor?.floorName}</span>
                 </p>
 
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3 mb-4">
+                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-red-900 font-medium">No Available Rooms</p>
+                      <p className="text-red-700 text-sm">{error}</p>
+                    </div>
+                  </div>
+                )}
+
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader className="w-8 h-8 text-blue-500 animate-spin" />
-                  </div>
-                ) : error ? (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                    <p className="text-red-700 text-sm">{error}</p>
                   </div>
                 ) : rooms.length === 0 ? (
                   <div className="text-center py-12">
@@ -241,55 +283,71 @@ export default function RoomAssignmentModal({
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {rooms.map((room, index) => (
-                      <motion.button
-                        key={room.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        onClick={() => handleRoomSelect(room)}
-                        className="text-left p-4 border-2 border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-semibold text-slate-900">Room {room.roomNumber}</h4>
-                          <span className="text-xs font-bold bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
-                            {room.roomType}
-                          </span>
-                        </div>
+                    {rooms.map((room, index) => {
+                      const available = isRoomAvailable(room);
+                      const capacityColor = getCapacityColor(room.occupied, room.capacity);
 
-                        <div className="space-y-2 mb-3">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-600">Capacity</span>
-                            <span className="font-semibold text-slate-900">
-                              {room.occupied}/{room.capacity}
+                      return (
+                        <motion.button
+                          key={room.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          onClick={() => handleRoomSelect(room)}
+                          disabled={!available}
+                          className={`text-left p-4 border-2 rounded-lg transition ${
+                            available
+                              ? 'border-slate-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer'
+                              : 'border-red-200 bg-red-50 cursor-not-allowed opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                              Room {room.roomNumber}
+                              {!available && <Lock className="w-4 h-4 text-red-500" />}
+                            </h4>
+                            <span className="text-xs font-bold bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+                              {room.roomType}
                             </span>
                           </div>
-                          <div className="w-full bg-slate-200 rounded-full h-2">
-                            <motion.div
-                              className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${(room.occupied / room.capacity) * 100}%` }}
-                              transition={{ duration: 0.3 }}
-                            />
-                          </div>
-                        </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          {room.hasACFacility && (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">AC</span>
-                          )}
-                          {room.hasWifi && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">WiFi</span>
-                          )}
-                          {room.hasAttachedBathroom && (
-                            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Bathroom</span>
-                          )}
-                          {room.hasBalcony && (
-                            <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded">Balcony</span>
-                          )}
-                        </div>
-                      </motion.button>
-                    ))}
+                          <div className="space-y-2 mb-3">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-600">Capacity</span>
+                              <span className={`font-semibold ${available ? 'text-slate-900' : 'text-red-600'}`}>
+                                {room.occupied}/{room.capacity}
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                              <motion.div
+                                className={`bg-gradient-to-r ${capacityColor} h-2 rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(room.occupied / room.capacity) * 100}%` }}
+                                transition={{ duration: 0.3 }}
+                              />
+                            </div>
+                            {!available && (
+                              <p className="text-xs text-red-600 font-medium">🔒 Room is full</p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {room.hasACFacility && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">AC</span>
+                            )}
+                            {room.hasWifi && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">WiFi</span>
+                            )}
+                            {room.hasAttachedBathroom && (
+                              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Bathroom</span>
+                            )}
+                            {room.hasBalcony && (
+                              <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded">Balcony</span>
+                            )}
+                          </div>
+                        </motion.button>
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>

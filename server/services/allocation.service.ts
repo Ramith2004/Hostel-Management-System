@@ -1,4 +1,4 @@
-import  prisma  from "../utils/prisma.ts";
+import prisma from "../utils/prisma.ts";
 import type {
   CreateAllocationDTO,
   UpdateAllocationDTO,
@@ -34,52 +34,81 @@ export class AllocationService {
     }
 
     // Verify room exists and belongs to tenant
+    // ✅ INCLUDE active allocations to get accurate occupied count
     const room = await prisma.room.findFirst({
       where: { id: data.roomId, tenantId },
+      include: {
+        roomAllocations: {
+          where: { status: "ACTIVE" },
+        },
+      },
     });
 
     if (!room) {
       throw new Error("Room not found");
     }
 
-    // Check room capacity
-    if (room.occupied >= room.capacity) {
-      throw new Error("Room is at full capacity");
+    // ✅ CHECK CAPACITY USING ACTUAL COUNT FROM DATABASE
+    const currentOccupancy = room.roomAllocations.length;
+    if (currentOccupancy >= room.capacity) {
+      throw new Error(
+        `Room ${room.roomNumber} is at full capacity (${currentOccupancy}/${room.capacity}). Cannot allocate more students.`
+      );
     }
 
-    // Create allocation
-    const allocation = await prisma.roomAllocation.create({
-      data: {
-        tenantId,
-        studentId: data.studentId,
-        roomId: data.roomId,
-        remarks: data.remarks ?? null,
-      },
-      include: {
-        student: {
-          select: { id: true, name: true, email: true },
-        },
-        room: {
-          select: { id: true, roomNumber: true, floor: true },
-        },
-      },
-    });
+    // ✅ CHECK ROOM STATUS
+    if (room.status === "MAINTENANCE" || room.status === "INACTIVE") {
+      throw new Error(`Room is ${room.status} and cannot be allocated`);
+    }
 
-    // Update room occupied count
-    await prisma.room.update({
-      where: { id: data.roomId },
-      data: {
-        occupied: { increment: 1 },
-      },
-    });
-
-    // Update room status if full
-    if (room.occupied + 1 >= room.capacity) {
-      await prisma.room.update({
-        where: { id: data.roomId },
-        data: { status: "FULL" },
+    // Create allocation with transaction
+    const allocation = await prisma.$transaction(async (tx) => {
+      // Create the allocation
+      const newAllocation = await tx.roomAllocation.create({
+        data: {
+          tenantId,
+          studentId: data.studentId,
+          roomId: data.roomId,
+          status: "ACTIVE",
+          remarks: data.remarks ?? null,
+          allocatedDate: new Date(),
+        },
+        include: {
+          student: {
+            select: { id: true, name: true, email: true },
+          },
+          room: {
+            select: { id: true, roomNumber: true, floor: true },
+          },
+        },
       });
-    }
+
+      // ✅ GET UPDATED COUNT
+      const updatedOccupancy = await tx.roomAllocation.count({
+        where: {
+          roomId: data.roomId,
+          status: "ACTIVE",
+        },
+      });
+
+      // ✅ SET PROPER ROOM STATUS
+      const newRoomStatus = updatedOccupancy >= room.capacity ? "FULL" : "OCCUPIED";
+
+      // Update room occupied count and status
+      await tx.room.update({
+        where: { id: data.roomId },
+        data: {
+          occupied: updatedOccupancy,
+          status: newRoomStatus,
+        },
+      });
+
+      console.log(
+        `✅ Allocation created: Student ${data.studentId} → Room ${room.roomNumber} (${updatedOccupancy}/${room.capacity})`
+      );
+
+      return newAllocation;
+    });
 
     return allocation;
   }
@@ -157,26 +186,52 @@ export class AllocationService {
     if (data.roomId && data.roomId !== allocation.roomId) {
       const newRoom = await prisma.room.findFirst({
         where: { id: data.roomId, tenantId },
+        include: {
+          roomAllocations: {
+            where: { status: "ACTIVE" },
+          },
+        },
       });
 
       if (!newRoom) {
         throw new Error("New room not found");
       }
 
-      if (newRoom.occupied >= newRoom.capacity) {
-        throw new Error("New room is at full capacity");
+      // ✅ CHECK ACTUAL OCCUPANCY
+      const newRoomOccupancy = newRoom.roomAllocations.length;
+      if (newRoomOccupancy >= newRoom.capacity) {
+        throw new Error(
+          `New room is at full capacity (${newRoomOccupancy}/${newRoom.capacity})`
+        );
       }
 
       // Decrement old room
+      const oldRoomOccupancy = await prisma.roomAllocation.count({
+        where: {
+          roomId: allocation.roomId,
+          status: "ACTIVE",
+          id: { not: allocationId },
+        },
+      });
+
       await prisma.room.update({
         where: { id: allocation.roomId },
-        data: { occupied: { decrement: 1 }, status: "AVAILABLE" },
+        data: {
+          occupied: oldRoomOccupancy,
+          status: oldRoomOccupancy === 0 ? "AVAILABLE" : "OCCUPIED",
+        },
       });
 
       // Increment new room
+      const updatedNewRoomOccupancy = newRoomOccupancy + 1;
+      const newRoomStatus = updatedNewRoomOccupancy >= newRoom.capacity ? "FULL" : "OCCUPIED";
+
       await prisma.room.update({
         where: { id: data.roomId },
-        data: { occupied: { increment: 1 } },
+        data: {
+          occupied: updatedNewRoomOccupancy,
+          status: newRoomStatus,
+        },
       });
     }
 
@@ -184,7 +239,7 @@ export class AllocationService {
     if (data.roomId !== undefined) updateData.roomId = data.roomId;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.remarks !== undefined) updateData.remarks = data.remarks;
-    if (data.status === "INACTIVE") updateData.checkoutDate = new Date();
+    if (data.status === "CHECKED_OUT") updateData.checkoutDate = new Date();
 
     const updated = await prisma.roomAllocation.update({
       where: { id: allocationId },
@@ -205,27 +260,49 @@ export class AllocationService {
   static async deallocateStudent(tenantId: string, allocationId: string) {
     const allocation = await prisma.roomAllocation.findFirst({
       where: { id: allocationId, tenantId },
+      include: {
+        room: true,
+      },
     });
 
     if (!allocation) {
       throw new Error("Allocation not found");
     }
 
-    const updated = await prisma.roomAllocation.update({
-      where: { id: allocationId },
-      data: {
-        status: "INACTIVE",
-        checkoutDate: new Date(),
-      },
-    });
+    // Update allocation status
+    const updated = await prisma.$transaction(async (tx) => {
+      const dealloc = await tx.roomAllocation.update({
+        where: { id: allocationId },
+        data: {
+          status: "CHECKED_OUT",
+          checkoutDate: new Date(),
+        },
+      });
 
-    // Decrement room occupied count
-    await prisma.room.update({
-      where: { id: allocation.roomId },
-      data: {
-        occupied: { decrement: 1 },
-        status: "AVAILABLE",
-      },
+      // ✅ GET REMAINING ACTIVE ALLOCATIONS
+      const remainingOccupancy = await tx.roomAllocation.count({
+        where: {
+          roomId: allocation.roomId,
+          status: "ACTIVE",
+        },
+      });
+
+      // ✅ SET PROPER ROOM STATUS
+      const newRoomStatus = remainingOccupancy === 0 ? "AVAILABLE" : "OCCUPIED";
+
+      await tx.room.update({
+        where: { id: allocation.roomId },
+        data: {
+          occupied: remainingOccupancy,
+          status: newRoomStatus,
+        },
+      });
+
+      console.log(
+        `✅ Student deallocated from Room ${allocation.room.roomNumber}. Remaining: ${remainingOccupancy}/${allocation.room.capacity}`
+      );
+
+      return dealloc;
     });
 
     return updated;

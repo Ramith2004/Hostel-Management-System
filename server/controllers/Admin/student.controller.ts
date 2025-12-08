@@ -26,11 +26,20 @@ export const createStudent = async (req: Request, res: Response) => {
       enrollmentNumber
     } = req.body;
 
-    // Validate required fields
+    // ✅ Validate required fields
     if (!name || !email || !phone) {
       return res.status(400).json({
         success: false,
         message: "Name, email, and phone are required",
+      });
+    }
+
+    // ✅ Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
       });
     }
 
@@ -53,15 +62,25 @@ export const createStudent = async (req: Request, res: Response) => {
       }
     );
 
+    // ✅ UPDATED: Return success with default credentials
     res.status(201).json({
       success: true,
-      message: "Student created successfully. Credentials sent to email.",
-      data: student,
+      message: "Student created successfully",
+      data: {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        phone: student.phone,
+        roomDetails: student.roomDetails,
+        defaultPassword: "12345678",
+        passwordNote: "Please share this default password with the student. They should change it on first login.",
+      },
     });
   } catch (error: any) {
+    console.error('❌ Error creating student:', error.message);
     res.status(400).json({
       success: false,
-      message: error.message,
+      message: error.message || "Failed to create student",
     });
   }
 };
@@ -81,11 +100,13 @@ export const getStudents = async (req: Request, res: Response) => {
       success: true,
       message: "Students retrieved successfully",
       data: students,
+      count: students.length,
     });
   } catch (error: any) {
+    console.error('❌ Error fetching students:', error.message);
     res.status(400).json({
       success: false,
-      message: error.message,
+      message: error.message || "Failed to fetch students",
     });
   }
 };

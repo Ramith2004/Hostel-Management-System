@@ -19,6 +19,11 @@ import { AllComplaints } from './pages/admin/Complaints/AllComplaints';
 import { AdminComplaintDetail } from './pages/Shared/AdminComplaintDetail';
 import { ComplaintResolution } from './pages/admin/Complaints/ComplaintResolution';
 import { ComplaintReports } from './pages/admin/Complaints/ComplaintReports';
+import AdminPaymentDashboard from './Components/AdminPayment/AdminPaymentDashboard';
+import StudentPaymentDashboard from './Components/StudentPaymeant/StudentPaymentDashboard';
+import FeesSettingsPage from './Components/AdminPayment/FeesSettingsTab';
+import AnnouncementsList from './pages/admin/Event/AnnouncementsList';
+import StudentAnnouncements from './pages/student/Events/StudentAnnouncements';
 
 function App() {
   return (
@@ -102,7 +107,7 @@ function App() {
           <Route path=":id" element={<ComplaintDetail />} />
         </Route>
 
-        {/* Admin Complaint Routes - IMPORTANT: Specific routes BEFORE :id */}
+        {/* Admin Complaint Routes */}
         <Route
           path="/admin/complaints"
           element={
@@ -112,10 +117,8 @@ function App() {
           }
         >
           <Route index element={<AllComplaints />} />
-          {/* Specific routes MUST come before the dynamic :id route */}
           <Route path="resolution" element={<ComplaintResolution />} />
           <Route path="reports" element={<ComplaintReports />} />
-          {/* Dynamic :id route MUST be last */}
           <Route path=":id" element={<AdminComplaintDetail />} />
         </Route>
 
@@ -130,6 +133,7 @@ function App() {
         >
           <Route index element={<AddStudent />} />
         </Route>
+
         <Route
           path="/allstudents"
           element={
@@ -153,6 +157,77 @@ function App() {
           <Route index element={<Hostel />} />
         </Route>
 
+        {/* ✅ Admin Announcements Routes */}
+        <Route
+          path="/admin/announcements"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN']}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AnnouncementsList />} />
+        </Route>
+
+        {/* ✅ Student Announcements Routes */}
+        <Route
+          path="/student/announcements"
+          element={
+            <ProtectedRoute allowedRoles={['STUDENT']}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<StudentAnnouncements />} />
+        </Route>
+
+        {/* Admin Payment Routes */}
+        <Route
+          path="/admin/payments"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN']}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AdminPaymentDashboard />} />
+        </Route>
+
+        {/* Student Payment Routes */}
+        <Route
+          path="/student/payments"
+          element={
+            <ProtectedRoute allowedRoles={['STUDENT']}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<StudentPaymentDashboard />} />
+        </Route>
+
+        {/* Settings Routes */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN']}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="fees" element={<FeesSettingsPage />} />
+          <Route index element={<Navigate to="/settings/fees" replace />} />
+        </Route>
+
+        {/* Legacy Payment Redirect Route */}
+        <Route
+          path="/payments"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'WARDEN', 'STUDENT']}>
+              <PaymentPageRedirect />
+            </ProtectedRoute>
+          }
+        />
+
         {/* 404 Not Found - Must be last */}
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -163,7 +238,7 @@ function App() {
 // Helper component to redirect to role-specific dashboard
 const DashboardRedirect = () => {
   const userRole = localStorage.getItem('userRole');
-  
+
   switch (userRole) {
     case 'ADMIN':
       return <Navigate to="/dashboard/admin" replace />;
@@ -179,13 +254,28 @@ const DashboardRedirect = () => {
 // Helper component to redirect to role-specific complaint page
 const ComplaintRedirect = () => {
   const userRole = localStorage.getItem('userRole');
-  
+
   switch (userRole) {
     case 'STUDENT':
       return <Navigate to="/student/complaints" replace />;
     case 'ADMIN':
     case 'WARDEN':
       return <Navigate to="/admin/complaints" replace />;
+    default:
+      return <Navigate to="/login" replace />;
+  }
+};
+
+// Helper component to redirect to role-specific payment page
+const PaymentPageRedirect = () => {
+  const userRole = localStorage.getItem('userRole');
+
+  switch (userRole) {
+    case 'STUDENT':
+      return <Navigate to="/student/payments" replace />;
+    case 'ADMIN':
+    case 'WARDEN':
+      return <Navigate to="/admin/payments" replace />;
     default:
       return <Navigate to="/login" replace />;
   }

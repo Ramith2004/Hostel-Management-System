@@ -22,8 +22,8 @@ enum TenantStatus {
 
 model Tenant {
   id               String        @id @default(uuid())
-  name             String // Hostel name
-  slug             String        @unique // For subdomain or URL: hostel-name
+  name             String
+  slug             String        @unique
   description      String?       @db.Text
   logo             String?
   address          String?
@@ -34,11 +34,11 @@ model Tenant {
   phone            String?
   email            String?
   website          String?
-  maxBuildings     Int           @default(10) // Plan limit
-  maxFloors        Int           @default(100) // Plan limit
-  maxRooms         Int           @default(500) // Plan limit
-  maxStudents      Int           @default(1000) // Plan limit
-  subscriptionPlan String        @default("BASIC") // BASIC, PRO, ENTERPRISE
+  maxBuildings     Int           @default(10)
+  maxFloors        Int           @default(100)
+  maxRooms         Int           @default(500)
+  maxStudents      Int           @default(1000)
+  subscriptionPlan String        @default("BASIC")
   status           TenantStatus  @default(TRIAL)
   trialEndsAt      DateTime?
   createdAt        DateTime      @default(now())
@@ -59,6 +59,7 @@ model Tenant {
   roomAllocations   RoomAllocation[]
   paymentDues       PaymentDue[]
   maintenanceRequests MaintenanceRequest[]
+  events            Event[]
 
   @@index([slug])
   @@index([status])
@@ -289,6 +290,7 @@ model User {
   adminProfile    AdminProfile?
   maintenanceAssignedTo MaintenanceRequest[] @relation("AssignedTo")
   maintenanceCreatedBy MaintenanceRequest[] @relation("CreatedBy")
+  events          Event[]         @relation("EventCreator")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -601,10 +603,12 @@ enum PaymentStatus {
   PARTIALLY_PAID
 }
 
+// Find the Payment model and update it:
+
 model Payment {
   id            String        @id @default(uuid())
   tenantId      String
-  studentId     String
+  studentId     String?       // ✅ CHANGED: Make it optional with ?
   amount        Decimal       @db.Decimal(10, 2)
   paymentDate   DateTime      @default(now())
   paymentMode   PaymentMode
@@ -613,13 +617,20 @@ model Payment {
   receiptNumber String?       @unique
   transactionId String?
   remarks       String?       @db.Text
+  
+  // Razorpay fields
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  razorpaySignature  String?
+  
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   // Relations
   tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student User?  @relation(fields: [studentId], references: [id], onDelete: SetNull)  // ✅ CHANGED: Make User relation optional
 
+  @@unique([tenantId, razorpayOrderId])
   @@index([tenantId])
   @@index([studentId])
   @@index([status])
@@ -744,4 +755,26 @@ model Announcement {
   @@index([targetRole])
   @@index([expiresAt])
   @@map("announcements")
+}
+
+// ...existing code...
+
+model Event {
+  id          String    @id @default(cuid())
+  tenantId    String
+  title       String
+  description String    @db.Text
+  eventDate   DateTime
+  location    String
+  status      String    @default("DRAFT")
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator User @relation("EventCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([createdBy])
+  @@map("events")
 }

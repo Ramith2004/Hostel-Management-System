@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -8,8 +8,7 @@ import {
   Settings,
   FileText,
   DollarSign,
-  Calendar,
-  Package,
+  Bell,
   ClipboardList,
   ChevronDown,
   ChevronRight,
@@ -31,6 +30,7 @@ interface NavItem {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const userRole = localStorage.getItem('userRole') || '';
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const location = useLocation();
 
   const toggleExpand = (path: string) => {
     setExpandedItems((prev) =>
@@ -38,7 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     );
   };
 
-  // Navigation items based on roles
   const navItems: NavItem[] = [
     {
       path: '/dashboard',
@@ -64,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
       icon: UserCheck,
       roles: ['ADMIN', 'WARDEN'],
     },
-    // Admin/Warden Complaints with Submenu
+    // ✅ Admin/Warden Complaints with Submenu
     {
       path: '/admin/complaints',
       label: 'Complaints',
@@ -85,37 +84,45 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         },
       ],
     },
-    // Student Complaints (no submenu)
+    // ✅ Student Complaints
     {
       path: '/student/complaints',
       label: 'My Complaints',
       icon: ClipboardList,
       roles: ['STUDENT'],
     },
+
+    // ✅ Admin/Warden Payments
     {
-      path: '/payments',
+      path: '/admin/payments',
       label: 'Payments',
       icon: DollarSign,
-      roles: ['ADMIN', 'WARDEN', 'STUDENT'],
+      roles: ['ADMIN', 'WARDEN'],
     },
+
+    // ✅ Student Payments
     {
-      path: '/inventory',
-      label: 'Inventory',
-      icon: Package,
+      path: '/student/payments',
+      label: 'My Payments',
+      icon: DollarSign,
+      roles: ['STUDENT'],
+    },
+
+    // ✅ UPDATED: Announcements with role-based routing
+    {
+      path: '/admin/announcements',
+      label: 'Announcements',
+      icon: Bell,
       roles: ['ADMIN', 'WARDEN'],
     },
     {
-      path: '/reports',
-      label: 'Reports',
-      icon: FileText,
-      roles: ['ADMIN', 'WARDEN'],
+      path: '/student/announcements',
+      label: 'Announcements',
+      icon: Bell,
+      roles: ['STUDENT'],
     },
-    {
-      path: '/events',
-      label: 'Events',
-      icon: Calendar,
-      roles: ['ADMIN', 'WARDEN', 'STUDENT'],
-    },
+
+    // ✅ Settings
     {
       path: '/settings',
       label: 'Settings',
@@ -124,27 +131,37 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     },
   ];
 
-  // Filter navigation items based on user role
   const filteredNavItems = navItems.filter((item) => item.roles.includes(userRole));
 
   const renderNavItem = (item: NavItem, depth = 0) => {
     const Icon = item.icon;
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.includes(item.path);
+    const isActive =
+      location.pathname === item.path ||
+      location.pathname.startsWith(item.path + '/');
 
     if (hasChildren) {
       return (
         <div key={item.path}>
           <button
             onClick={() => toggleExpand(item.path)}
-            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
             style={{ paddingLeft: `${(depth + 1) * 1}rem` }}
           >
             <div className="flex items-center gap-3">
               <Icon size={20} />
               <span className="font-medium">{item.label}</span>
             </div>
-            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            {isExpanded ? (
+              <ChevronDown size={16} />
+            ) : (
+              <ChevronRight size={16} />
+            )}
           </button>
 
           <AnimatePresence>
@@ -191,11 +208,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         opacity: isOpen ? 1 : 0,
       }}
       transition={{ duration: 0.3 }}
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-card border-r border-border overflow-y-auto ${
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-card border-r border-border overflow-y-auto z-20 ${
         isOpen ? 'block' : 'hidden'
       }`}
     >
-      <nav className="p-4 space-y-2">{filteredNavItems.map((item) => renderNavItem(item))}</nav>
+      <nav className="p-4 space-y-2">
+        {filteredNavItems.map((item) => renderNavItem(item))}
+      </nav>
     </motion.aside>
   );
 };

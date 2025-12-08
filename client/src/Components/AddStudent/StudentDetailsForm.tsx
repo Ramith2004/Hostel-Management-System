@@ -24,7 +24,16 @@ interface StudentDetailsFormProps {
   room: Room;
   floor: Floor | null;
   building: Building;
-  onSuccess: (data: any) => void;
+  onSuccess: (data: {
+    studentName: string;
+    studentEmail: string;
+    defaultPassword: string;
+    roomDetails: {
+      roomNumber: string;
+      floorName: string;
+      buildingName: string;
+    };
+  }) => void;
   setIsLoading: (loading: boolean) => void;
 }
 
@@ -114,6 +123,7 @@ export default function StudentDetailsForm({
       onSuccess({
         studentName: formData.name,
         studentEmail: formData.email,
+        defaultPassword: '12345678', // Replace with actual password if available
         roomDetails: {
           roomNumber: room.roomNumber,
           floorName: floor?.floorName || 'N/A',
