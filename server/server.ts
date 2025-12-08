@@ -23,7 +23,9 @@ const PORT = process.env.PORT || 5000;
 const corsOptions = {
   origin: [
     'http://localhost:5173',
+    'http://localhost:3000',
     'https://hostel-x.vercel.app',
+    'https://hostel-management-system-n5o6mzg73-ramith-chatterjees-projects.vercel.app', // ✅ Add your Vercel/deployed frontend URL here
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
